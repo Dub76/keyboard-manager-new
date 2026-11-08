@@ -90,6 +90,22 @@ final class InventoryModelsTests: XCTestCase {
         XCTAssertEqual(suggestions.count, Set(suggestions.map { $0.lowercased() }).count)
     }
 
+    func testInstanceLockAllowsOnlyOneHolderUntilReleased() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("KeyboardManagerLock-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let first = InstanceLock(directoryURL: directory)
+        let second = InstanceLock(directoryURL: directory)
+
+        XCTAssertTrue(first.acquire())
+        XCTAssertTrue(first.acquire(), "Repeated acquire by the holder is harmless.")
+        XCTAssertFalse(second.acquire())
+
+        first.release()
+        XCTAssertTrue(second.acquire())
+    }
+
     func testPrimaryNavigationUsesOverviewGalleryCaptureOrder() {
         XCTAssertEqual(AppRoute.primary, [.overview, .gallery, .capture])
     }

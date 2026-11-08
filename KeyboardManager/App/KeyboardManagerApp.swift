@@ -17,6 +17,17 @@ struct KeyboardManagerApp: App {
             forKey: AppLanguage.preferenceKey
         ) == nil
         let environment = ProcessInfo.processInfo.environment
+        // A unit-test host must not compete with the user's running app.
+        if environment["XCTestConfigurationFilePath"] == nil {
+            let lockDirectory = environment["KEYBOARD_MANAGER_UI_TEST_ROOT"]
+                .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+                ?? MigrationStorageLayout.default.rootURL
+            let lock = InstanceLock(directoryURL: lockDirectory)
+            guard lock.acquire() else {
+                RunningInstance.handOver()
+            }
+            RunningInstance.lock = lock
+        }
         if let testRoot = environment["KEYBOARD_MANAGER_UI_TEST_ROOT"], !testRoot.isEmpty {
             let suiteName = "de.r3d42.KeyboardManagerV2.uitests"
             let testDefaults = UserDefaults(suiteName: suiteName) ?? .standard
@@ -52,6 +63,14 @@ struct KeyboardManagerApp: App {
                         ),
                         v1ProcessDetector: processDetector
                     ),
+                    photoService: PhotoImportService(
+                        layout: MigrationStorageLayout(
+                            rootURL: rootURL.appendingPathComponent(
+                                "Migration",
+                                isDirectory: true
+                            )
+                        )
+                    ),
                     automaticBackupService: AutomaticBackupService(
                         directoryURL: rootURL.appendingPathComponent(
                             "AutomaticBackups",
@@ -62,7 +81,8 @@ struct KeyboardManagerApp: App {
                         testDefaults.object(
                             forKey: InventoryStore.automaticBackupsPreferenceKey
                         ) as? Bool ?? true
-                    }
+                    },
+                    backupDefaults: testDefaults
                 )
             )
         } else {
@@ -117,6 +137,14 @@ struct KeyboardManagerApp: App {
                     }
                 }
 
+                Button("Löschen rückgängig machen") {
+                    Task {
+                        await store.undoLastDeletion()
+                    }
+                }
+                .keyboardShortcut("z", modifiers: [.command, .option])
+                .disabled(store.undoableDeletion == nil)
+
                 Divider()
 
                 Button("V1-Migration öffnen") {
@@ -139,6 +167,28 @@ struct KeyboardManagerApp: App {
                 AppLanguage.normalized(preferredLanguage).locale
             )
         }
+    }
+}
+
+/// Keeps the single-instance lock for the lifetime of the process and hands
+/// a second launch over to the instance that is already running.
+@MainActor
+enum RunningInstance {
+    static var lock: InstanceLock?
+
+    static func handOver() -> Never {
+        let others = NSRunningApplication
+            .runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+            .filter { $0 != NSRunningApplication.current }
+        if let other = others.first {
+            other.activate(options: [.activateAllWindows])
+        } else {
+            let alert = NSAlert()
+            alert.messageText = L10n.text("Keyboard Manager läuft bereits.")
+            alert.informativeText = L10n.text("Ein anderer Vorgang verwendet gerade dieselben Daten. Bitte beende ihn und starte die App erneut.")
+            alert.runModal()
+        }
+        exit(0)
     }
 }
 

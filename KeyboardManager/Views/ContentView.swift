@@ -17,6 +17,7 @@ struct ContentView: View {
         } detail: {
             VStack(spacing: 0) {
                 detailView
+                undoDeletionStatus
                 reportExportStatus
                 backupExportStatus
             }
@@ -81,6 +82,7 @@ struct ContentView: View {
         }
         .task {
             await store.load()
+            await store.purgeAbandonedDeletions()
             if shouldAdoptStoredLanguage {
                 preferredLanguage = AppLanguage.normalized(
                     store.snapshot.metadata.preferredLanguage
@@ -149,6 +151,29 @@ struct ContentView: View {
             }
         } message: {
             Text("Der aktuelle Entwurf wurde noch nicht gespeichert.")
+        }
+    }
+
+    @ViewBuilder
+    private var undoDeletionStatus: some View {
+        if let deletion = store.undoableDeletion {
+            statusBar {
+                Image(systemName: "trash")
+                    .foregroundStyle(.secondary)
+                Text("„\(deletion.name)“ wurde gelöscht.")
+                    .lineLimit(1)
+                Spacer()
+                Button("Rückgängig") {
+                    Task {
+                        await store.undoLastDeletion()
+                    }
+                }
+                Button("Schließen") {
+                    Task {
+                        await store.dismissUndoableDeletion()
+                    }
+                }
+            }
         }
     }
 

@@ -28,6 +28,11 @@ final class InventoryStore {
     var reportExportState: InventoryReportExportState = .idle
     private(set) var automaticBackupState: AutomaticBackupState = .idle
     private(set) var latestAutomaticBackup: AutomaticBackupEntry?
+    private(set) var automaticBackupEntries: [AutomaticBackupEntry] = []
+    private(set) var backupRestoreState: BackupRestoreState = .idle
+    private(set) var backupMirrorURL: URL?
+    private(set) var backupMirrorError: String?
+    private(set) var undoableDeletion: UndoableDeletion?
     private(set) var languagePersistenceError: String?
     private(set) var migrationReportURL: URL?
     private(set) var pendingMigrationSnapshot: InventorySnapshot?
@@ -44,12 +49,14 @@ final class InventoryStore {
     private let thumbnailService: ThumbnailService
     private let automaticBackupService: AutomaticBackupService?
     private let automaticBackupsEnabled: @MainActor @Sendable () -> Bool
+    private let backupDefaults: UserDefaults
     private var pendingEditorNavigation: EditorNavigationTarget?
     private var pendingOverviewReturn: OverviewReturnContext?
     private var overviewRestoreRevision = 0
     private var writeChain: Task<Void, Never>?
 
     static let automaticBackupsPreferenceKey = "automaticBackupsEnabled"
+    static let backupMirrorPathKey = "automaticBackupMirrorPath"
 
     /// Reads the Settings toggle; automatic backups are on unless turned off.
     static func automaticBackupsPreference() -> Bool {
@@ -75,7 +82,8 @@ final class InventoryStore {
         automaticBackupService: AutomaticBackupService? = nil,
         automaticBackupsEnabled: @escaping @MainActor @Sendable () -> Bool = {
             InventoryStore.automaticBackupsPreference()
-        }
+        },
+        backupDefaults: UserDefaults = .standard
     ) {
         self.repository = repository
         self.migrationService = migrationService
@@ -86,6 +94,9 @@ final class InventoryStore {
         self.thumbnailService = thumbnailService
         self.automaticBackupService = automaticBackupService
         self.automaticBackupsEnabled = automaticBackupsEnabled
+        self.backupDefaults = backupDefaults
+        backupMirrorURL = backupDefaults.string(forKey: Self.backupMirrorPathKey)
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
 
     func load() async {
@@ -131,6 +142,7 @@ final class InventoryStore {
         updated.metadata.preferredLanguage = normalized
         do {
             try await repository.saveSnapshot(updated)
+            await discardUndoableDeletion()
             snapshot = updated
             languagePersistenceError = nil
         } catch {
@@ -337,6 +349,7 @@ final class InventoryStore {
             }
             await photoService.remove(result.removedPhotos)
             await thumbnailService.remove(result.removedPhotos)
+            await discardUndoableDeletion()
             snapshot = result.snapshot
             selectedKind = draft.kind
             selectedItemID = draft.id
@@ -368,8 +381,26 @@ final class InventoryStore {
         editorSaveState = .saving
         do {
             let result = try editingService.deleting(kind: kind, id: id, in: snapshot)
+            let previousSnapshot = snapshot
+            let itemName = InventoryQuery.items(in: previousSnapshot, kind: kind)
+                .first { $0.id == id }?.name ?? ""
             try await repository.saveSnapshot(result.snapshot)
-            await photoService.remove(result.removedPhotos)
+            await discardUndoableDeletion()
+            let holdID = UUID().uuidString
+            if await photoService.hold(result.removedPhotos, holdID: holdID) {
+                undoableDeletion = UndoableDeletion(
+                    kind: kind,
+                    itemID: id,
+                    name: itemName,
+                    previousSnapshot: previousSnapshot,
+                    photos: result.removedPhotos,
+                    holdID: holdID
+                )
+            } else {
+                // Without all photos an undo could not restore the item fully.
+                await photoService.remove(result.removedPhotos)
+                await photoService.discardHold(holdID)
+            }
             await thumbnailService.remove(result.removedPhotos)
             snapshot = result.snapshot
             if selectedItemID == id {
@@ -406,6 +437,7 @@ final class InventoryStore {
             let updated = try editingService.clearingImportWarnings(switchSetID: id, in: snapshot)
             guard updated != snapshot else { return true }
             try await repository.saveSnapshot(updated)
+            await discardUndoableDeletion()
             snapshot = updated
             editorSaveState = .saved(L10n.text("Die Importhinweise wurden entfernt und in den Notizen festgehalten."))
             scheduleAutomaticBackup()
@@ -704,6 +736,7 @@ final class InventoryStore {
                 backupURL: sourceURL,
                 expectedDryRun: dryRun
             )
+            await discardUndoableDeletion()
             snapshot = result.snapshot
             loadState = .loaded
             migrationReportURL = result.reportURL
@@ -723,6 +756,115 @@ final class InventoryStore {
         }
     }
 
+    // MARK: Undo deletion
+
+    static var finishDraftFirstMessage: String {
+        L10n.text("Bitte speichere oder verwirf zuerst den geöffneten Entwurf.")
+    }
+
+    /// Restores the state from before the last deletion. It stays available
+    /// only until the next change, so nothing newer can be lost by it.
+    func undoLastDeletion() async {
+        await serializedWrite { await self.performUndoLastDeletion() }
+    }
+
+    /// Makes the last deletion final and frees its photos.
+    func dismissUndoableDeletion() async {
+        await serializedWrite { await self.discardUndoableDeletion() }
+    }
+
+    /// Photos held by a previous session can no longer be restored.
+    func purgeAbandonedDeletions() async {
+        await serializedWrite {
+            guard self.undoableDeletion == nil else { return }
+            await self.photoService.discardAllHolds()
+        }
+    }
+
+    private func performUndoLastDeletion() async {
+        guard let undo = undoableDeletion, canWriteInventory else { return }
+        guard !needsDiscardConfirmation else {
+            editorSaveState = .failed(Self.finishDraftFirstMessage)
+            return
+        }
+        do {
+            try await photoService.restoreHeld(undo.photos, holdID: undo.holdID)
+            do {
+                try await repository.saveSnapshot(undo.previousSnapshot)
+            } catch {
+                _ = await photoService.hold(undo.photos, holdID: undo.holdID)
+                throw error
+            }
+            await photoService.discardHold(undo.holdID)
+            undoableDeletion = nil
+            snapshot = undo.previousSnapshot
+            isEditorDirty = false
+            scheduleOverviewRestore(kind: undo.kind, itemID: undo.itemID)
+            route = .overview
+            editorSaveState = .saved(L10n.text("„%@“ wurde wiederhergestellt.", arguments: undo.name))
+            scheduleAutomaticBackup()
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func discardUndoableDeletion() async {
+        guard let undo = undoableDeletion else { return }
+        undoableDeletion = nil
+        await photoService.discardHold(undo.holdID)
+    }
+
+    // MARK: Restore from automatic backups
+
+    /// Replaces the collection with an automatic backup through the migration
+    /// pipeline: the backup is verified first and the current data is moved
+    /// to `Backups/` before the restored state becomes active. Also works
+    /// after a failed load, where it is the way back to a usable collection.
+    func restoreAutomaticBackup(_ entry: AutomaticBackupEntry) async {
+        await serializedWrite { await self.performRestoreAutomaticBackup(entry) }
+    }
+
+    func clearBackupRestoreStatus() {
+        if case .restoring = backupRestoreState { return }
+        backupRestoreState = .idle
+    }
+
+    private func performRestoreAutomaticBackup(_ entry: AutomaticBackupEntry) async {
+        guard let automaticBackupService,
+              AutomaticBackupService.entry(for: entry.url) != nil,
+              entry.url.deletingLastPathComponent().standardizedFileURL
+                == automaticBackupService.directoryURL else {
+            backupRestoreState = .failed(L10n.text("Dieses Backup kann nicht wiederhergestellt werden."))
+            return
+        }
+        guard !needsDiscardConfirmation else {
+            backupRestoreState = .failed(Self.finishDraftFirstMessage)
+            return
+        }
+        backupRestoreState = .restoring
+        do {
+            let dryRun = try await migrationService.inspectSource(at: entry.url)
+            let result = try await migrationCommitService.commit(
+                backupURL: entry.url,
+                expectedDryRun: dryRun
+            )
+            await discardUndoableDeletion()
+            snapshot = result.snapshot
+            loadState = .loaded
+            selectedItemID = nil
+            isEditorDirty = false
+            route = .overview
+            pendingMigrationSnapshot = nil
+            pendingMigrationResult = nil
+            pendingMigrationSourceURL = nil
+            migrationInspectionState = .idle
+            migrationCommitState = .idle
+            backupRestoreState = .succeeded(entry.createdAt)
+        } catch {
+            backupRestoreState = .failed(error.localizedDescription)
+        }
+    }
+
     // MARK: Automatic backups
 
     var automaticBackupsDirectoryURL: URL? {
@@ -736,7 +878,33 @@ final class InventoryStore {
 
     func refreshAutomaticBackupStatus() async {
         guard let automaticBackupService else { return }
-        latestAutomaticBackup = await automaticBackupService.entries().first
+        automaticBackupEntries = await automaticBackupService.entries()
+        latestAutomaticBackup = automaticBackupEntries.first
+    }
+
+    /// Sets or clears the additional folder that receives a copy of every
+    /// automatic backup, and copies the existing backups there right away.
+    func setBackupMirror(_ url: URL?) async {
+        await serializedWrite {
+            self.backupMirrorURL = url
+            self.backupMirrorError = nil
+            if let url {
+                self.backupDefaults.set(url.path, forKey: Self.backupMirrorPathKey)
+            } else {
+                self.backupDefaults.removeObject(forKey: Self.backupMirrorPathKey)
+            }
+            await self.syncBackupMirror()
+        }
+    }
+
+    private func syncBackupMirror() async {
+        guard let automaticBackupService, let backupMirrorURL else { return }
+        do {
+            try await automaticBackupService.syncMirror(to: backupMirrorURL)
+            backupMirrorError = nil
+        } catch {
+            backupMirrorError = error.localizedDescription
+        }
     }
 
     /// Waits until every queued write, including scheduled backups, is done.
@@ -770,6 +938,8 @@ final class InventoryStore {
             case .skippedEmpty:
                 automaticBackupState = force ? .nothingToBackUp : .idle
             }
+            await refreshAutomaticBackupStatus()
+            await syncBackupMirror()
         } catch {
             automaticBackupState = .failed(error.localizedDescription)
         }
@@ -838,6 +1008,22 @@ enum EditorSaveState: Equatable, Sendable {
     case idle
     case saving
     case saved(String)
+    case failed(String)
+}
+
+struct UndoableDeletion: Equatable, Sendable {
+    var kind: InventoryItemKind
+    var itemID: String
+    var name: String
+    var previousSnapshot: InventorySnapshot
+    var photos: [PhotoRecord]
+    var holdID: String
+}
+
+enum BackupRestoreState: Equatable, Sendable {
+    case idle
+    case restoring
+    case succeeded(Date)
     case failed(String)
 }
 

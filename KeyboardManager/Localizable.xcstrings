@@ -61,6 +61,26 @@
         }
       }
     },
+    "„%@“ wurde gelöscht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” was deleted."
+          }
+        }
+      }
+    },
+    "„%@“ wurde wiederhergestellt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” was restored."
+          }
+        }
+      }
+    },
     "%@ · %lld Stück": {
       "localizations": {
         "en": {
@@ -449,6 +469,16 @@
         }
       }
     },
+    "Auswählen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose"
+          }
+        }
+      }
+    },
     "Automatische Backups": {
       "localizations": {
         "en": {
@@ -515,6 +545,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Backup is being created and verified…"
+          }
+        }
+      }
+    },
+    "Backup wird geprüft und wiederhergestellt …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verifying and restoring backup…"
           }
         }
       }
@@ -751,6 +791,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select a V1 ZIP backup, a legacy JSON backup, or the V1 data folder."
+          }
+        }
+      }
+    },
+    "Bitte speichere oder verwirf zuerst den geöffneten Entwurf.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please save or discard the open draft first."
           }
         }
       }
@@ -1325,6 +1375,16 @@
         }
       }
     },
+    "Der zweite Backup-Ort „%@“ ist nicht erreichbar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The second backup location “%@” is not reachable."
+          }
+        }
+      }
+    },
     "Details": {
       "localizations": {
         "en": {
@@ -1481,6 +1541,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The copied V1 database failed integrity verification: %@"
+          }
+        }
+      }
+    },
+    "Die Sammlung wird auf den Stand vom %@ zurückgesetzt. Der aktuelle Stand wird vorher in den Ordner „Backups“ verschoben.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The collection will be reset to the state of %@. The current state is first moved to the “Backups” folder."
           }
         }
       }
@@ -1665,6 +1735,26 @@
         }
       }
     },
+    "Dieses Backup kann nicht wiederhergestellt werden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This backup cannot be restored."
+          }
+        }
+      }
+    },
+    "Dieses Backup wiederherstellen?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore this backup?"
+          }
+        }
+      }
+    },
     "Doppelte ID bei %@.": {
       "localizations": {
         "en": {
@@ -1721,6 +1811,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "An older V1 ZIP schema is safely normalized to the current V2 model."
+          }
+        }
+      }
+    },
+    "Ein anderer Vorgang verwendet gerade dieselben Daten. Bitte beende ihn und starte die App erneut.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another process is using the same data. Please quit it and start the app again."
           }
         }
       }
@@ -2385,6 +2485,16 @@
         }
       }
     },
+    "Höchstens ein Backup pro Tag und nur, wenn sich etwas geändert hat. Die letzten 7 bleiben erhalten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At most one backup per day, and only when something changed. The latest 7 are kept."
+          }
+        }
+      }
+    },
     "Höchstens ein Backup pro Tag und nur, wenn sich etwas geändert hat. Die letzten 7 bleiben erhalten. Wiederherstellen: „V1-Migration“ → „Andere V1-Quelle auswählen …“ und die gewünschte ZIP-Datei wählen.": {
       "localizations": {
         "en": {
@@ -2675,6 +2785,16 @@
         }
       }
     },
+    "Keiner": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
     "Keyboard": {
       "localizations": {
         "en": {
@@ -2711,6 +2831,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keyboard Manager main window"
+          }
+        }
+      }
+    },
+    "Keyboard Manager läuft bereits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard Manager is already running."
           }
         }
       }
@@ -2815,6 +2945,16 @@
         }
       }
     },
+    "Kopiert jedes automatische Backup zusätzlich dorthin, zum Beispiel nach iCloud Drive oder auf eine externe Festplatte.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also copies every automatic backup there, for example to iCloud Drive or an external drive."
+          }
+        }
+      }
+    },
     "Kraft: %@": {
       "localizations": {
         "en": {
@@ -2911,6 +3051,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        }
+      }
+    },
+    "Löschen rückgängig machen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo Deletion"
           }
         }
       }
@@ -3311,6 +3461,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "Ordner wählen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Folder…"
           }
         }
       }
@@ -3721,6 +3881,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Steel"
+          }
+        }
+      }
+    },
+    "Stand vom %@ wiederhergestellt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "State of %@ restored."
           }
         }
       }
@@ -4265,6 +4435,36 @@
         }
       }
     },
+    "Wiederherstellen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "Wiederherstellen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore…"
+          }
+        }
+      }
+    },
+    "Wiederherstellen fehlgeschlagen: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore failed: %@"
+          }
+        }
+      }
+    },
     "Wiederholen": {
       "localizations": {
         "en": {
@@ -4371,6 +4571,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Additional"
+          }
+        }
+      }
+    },
+    "Zweiter Speicherort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Second location"
           }
         }
       }

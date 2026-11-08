@@ -161,6 +161,55 @@ actor PhotoImportService {
         }
     }
 
+    /// Moves photos of a deleted item aside so the deletion can be undone.
+    /// Returns false if not all of them could be kept.
+    func hold(_ records: [PhotoRecord], holdID: String) -> Bool {
+        guard !records.isEmpty else { return true }
+        let folder = layout.deletedPhotosRootURL.appendingPathComponent(holdID, isDirectory: true)
+        do {
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+            for record in records {
+                let source = try safeURL(for: record)
+                guard fileManager.fileExists(atPath: source.path) else { continue }
+                try fileManager.moveItem(
+                    at: source,
+                    to: folder.appendingPathComponent(source.lastPathComponent)
+                )
+            }
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func restoreHeld(_ records: [PhotoRecord], holdID: String) throws {
+        guard !records.isEmpty else { return }
+        let folder = layout.deletedPhotosRootURL.appendingPathComponent(holdID, isDirectory: true)
+        try fileManager.createDirectory(
+            at: layout.currentPhotosDirectoryURL,
+            withIntermediateDirectories: true
+        )
+        for record in records {
+            let target = try safeURL(for: record)
+            let held = folder.appendingPathComponent(target.lastPathComponent)
+            guard fileManager.fileExists(atPath: held.path),
+                  !fileManager.fileExists(atPath: target.path) else { continue }
+            try fileManager.moveItem(at: held, to: target)
+        }
+    }
+
+    func discardHold(_ holdID: String) {
+        try? fileManager.removeItem(
+            at: layout.deletedPhotosRootURL.appendingPathComponent(holdID, isDirectory: true)
+        )
+    }
+
+    /// A deletion can only be undone while the app keeps running, so held
+    /// photos left over from an earlier session are final.
+    func discardAllHolds() {
+        try? fileManager.removeItem(at: layout.deletedPhotosRootURL)
+    }
+
     func fileURL(for record: PhotoRecord) -> URL? {
         try? safeURL(for: record)
     }

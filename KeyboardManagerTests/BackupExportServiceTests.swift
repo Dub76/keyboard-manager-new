@@ -249,6 +249,59 @@ final class BackupExportServiceTests: XCTestCase {
         guard case .created = forced else { return XCTFail("Expected forced backup, got \(forced)") }
     }
 
+    func testBackupMirrorCopiesCatchesUpAndPrunesOnlyItsOwnFiles() async throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.directory) }
+        let mirror = fixture.directory.appendingPathComponent("Mirror", isDirectory: true)
+        let service = AutomaticBackupService(
+            directoryURL: fixture.directory.appendingPathComponent("Automatic", isDirectory: true),
+            exporter: fixture.service,
+            retainedCount: 2
+        )
+        func snapshot(named name: String) -> InventorySnapshot {
+            var snapshot = fixture.snapshot
+            snapshot.boards[0].name = name
+            return snapshot
+        }
+        let day: TimeInterval = 24 * 60 * 60
+        _ = try await service.backUpIfDue(snapshot: snapshot(named: "A"), appVersion: "test", now: fixture.exportedAt)
+
+        do {
+            try await service.syncMirror(to: mirror)
+            XCTFail("A missing folder must be reported, not created")
+        } catch {
+            XCTAssertEqual(
+                error.localizedDescription,
+                BackupExportError.mirrorUnavailable(mirror.standardizedFileURL.path).localizedDescription
+            )
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mirror.path))
+
+        try FileManager.default.createDirectory(at: mirror, withIntermediateDirectories: true)
+        let foreign = mirror.appendingPathComponent("Urlaubsfoto.zip")
+        try Data("x".utf8).write(to: foreign)
+
+        var copied = try await service.syncMirror(to: mirror)
+        XCTAssertEqual(copied, 1)
+        copied = try await service.syncMirror(to: mirror)
+        XCTAssertEqual(copied, 0)
+
+        for index in 1...2 {
+            _ = try await service.backUpIfDue(
+                snapshot: snapshot(named: "Tag \(index)"),
+                appVersion: "test",
+                now: fixture.exportedAt + Double(index) * day + 60
+            )
+        }
+        copied = try await service.syncMirror(to: mirror)
+        XCTAssertEqual(copied, 2)
+
+        let local = await service.entries().map(\.url.lastPathComponent)
+        let mirrored = try FileManager.default.contentsOfDirectory(atPath: mirror.path)
+        XCTAssertEqual(Set(mirrored), Set(local + ["Urlaubsfoto.zip"]))
+        XCTAssertEqual(local.count, 2)
+    }
+
     func testAutomaticBackupIsRestorableThroughMigrationReader() async throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.directory) }

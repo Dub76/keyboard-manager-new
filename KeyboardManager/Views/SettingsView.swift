@@ -7,6 +7,7 @@ struct SettingsView: View {
     @Binding var preferredLanguage: String
     @AppStorage("followSystemAppearance") private var followSystemAppearance = true
     @AppStorage(InventoryStore.automaticBackupsPreferenceKey) private var automaticBackupsEnabled = true
+    @State private var backupPendingRestore: AutomaticBackupEntry?
 
     var body: some View {
         Form {
@@ -48,7 +49,22 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 600)
+        .frame(width: 520, height: 720)
+        .confirmationDialog(
+            "Dieses Backup wiederherstellen?",
+            isPresented: restoreConfirmationPresented,
+            titleVisibility: .visible,
+            presenting: backupPendingRestore
+        ) { entry in
+            Button("Wiederherstellen", role: .destructive) {
+                Task {
+                    await store.restoreAutomaticBackup(entry)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: { entry in
+            Text("Die Sammlung wird auf den Stand vom \(backupDateText(entry.createdAt)) zurückgesetzt. Der aktuelle Stand wird vorher in den Ordner „Backups“ verschoben.")
+        }
         .task {
             await store.refreshAutomaticBackupStatus()
         }
@@ -72,9 +88,92 @@ struct SettingsView: View {
                     showBackupsInFinder()
                 }
             }
-            Text("Höchstens ein Backup pro Tag und nur, wenn sich etwas geändert hat. Die letzten 7 bleiben erhalten. Wiederherstellen: „V1-Migration“ → „Andere V1-Quelle auswählen …“ und die gewünschte ZIP-Datei wählen.")
+            Text("Höchstens ein Backup pro Tag und nur, wenn sich etwas geändert hat. Die letzten 7 bleiben erhalten.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            backupMirrorRows
+            backupRestoreRows
+        }
+    }
+
+    @ViewBuilder
+    private var backupMirrorRows: some View {
+        LabeledContent("Zweiter Speicherort") {
+            Text(store.backupMirrorURL?.lastPathComponent ?? L10n.text("Keiner"))
+                .lineLimit(1)
+                .help(store.backupMirrorURL?.path ?? "")
+        }
+        HStack {
+            Button("Ordner wählen …") {
+                chooseBackupMirror()
+            }
+            if store.backupMirrorURL != nil {
+                Button("Entfernen") {
+                    Task {
+                        await store.setBackupMirror(nil)
+                    }
+                }
+            }
+        }
+        if let message = store.backupMirrorError {
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        }
+        Text("Kopiert jedes automatische Backup zusätzlich dorthin, zum Beispiel nach iCloud Drive oder auf eine externe Festplatte.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var backupRestoreRows: some View {
+        ForEach(store.automaticBackupEntries, id: \.url) { entry in
+            LabeledContent(backupDateText(entry.createdAt)) {
+                Button("Wiederherstellen …") {
+                    store.clearBackupRestoreStatus()
+                    backupPendingRestore = entry
+                }
+                .disabled(store.backupRestoreState == .restoring)
+            }
+        }
+        switch store.backupRestoreState {
+        case .idle:
+            EmptyView()
+        case .restoring:
+            HStack {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Backup wird geprüft und wiederhergestellt …")
+            }
+        case let .succeeded(date):
+            Label("Stand vom \(backupDateText(date)) wiederhergestellt.", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case let .failed(message):
+            Label("Wiederherstellen fehlgeschlagen: \(message)", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+        }
+    }
+
+    private var restoreConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { backupPendingRestore != nil },
+            set: { if !$0 { backupPendingRestore = nil } }
+        )
+    }
+
+    private func backupDateText(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    private func chooseBackupMirror() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = L10n.text("Auswählen")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            await store.setBackupMirror(url)
         }
     }
 

@@ -176,6 +176,186 @@ final class InventoryStoreWindowTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: finderPhoto.path), "Finder-Dateien bleiben unberührt.")
     }
 
+    func testDeletionCanBeUndoneIncludingPhotosUntilNextChange() async throws {
+        let fixture = try await makeDataSafetyFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let store = fixture.makeStore()
+        await store.load()
+
+        let deleted = await store.deleteItem(kind: .board, id: "board_1")
+
+        XCTAssertTrue(deleted)
+        XCTAssertTrue(store.snapshot.boards.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.photoURL.path))
+        XCTAssertEqual(store.undoableDeletion?.name, "Eins")
+
+        await store.undoLastDeletion()
+
+        XCTAssertNil(store.undoableDeletion)
+        XCTAssertEqual(store.snapshot.boards.map(\.name), ["Eins"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.photoURL.path))
+        let persisted = try await fixture.repository.loadSnapshot()
+        XCTAssertEqual(persisted.boards.map(\.name), ["Eins"])
+        XCTAssertEqual(store.route, .overview)
+
+        // A later change makes the deletion final and frees the held photo.
+        _ = await store.deleteItem(kind: .board, id: "board_1")
+        XCTAssertNotNil(store.undoableDeletion)
+        var draft = InventoryDraft(kind: .board)
+        draft.name = "Neu"
+        _ = await store.save(draft, preparedPhotos: [])
+
+        XCTAssertNil(store.undoableDeletion)
+        let held = try FileManager.default.contentsOfDirectory(
+            at: fixture.layout.deletedPhotosRootURL,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertTrue(held.isEmpty)
+    }
+
+    func testRestoreBringsBackBackupAndKeepsCurrentStateAside() async throws {
+        let fixture = try await makeDataSafetyFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let store = fixture.makeStore()
+        await store.load()
+        await store.waitForPendingWrites()
+        let backup = try XCTUnwrap(store.latestAutomaticBackup)
+
+        store.editItem(kind: .board, id: "board_1")
+        var draft = store.editorDraft()
+        draft.name = "Geändert"
+        _ = await store.save(draft, preparedPhotos: [])
+        await store.waitForPendingWrites()
+
+        store.editItem(kind: .board, id: "board_1")
+        store.isEditorDirty = true
+        await store.restoreAutomaticBackup(backup)
+        XCTAssertEqual(store.backupRestoreState, .failed(InventoryStore.finishDraftFirstMessage))
+        XCTAssertEqual(store.snapshot.boards.map(\.name), ["Geändert"])
+
+        store.isEditorDirty = false
+        await store.restoreAutomaticBackup(backup)
+
+        XCTAssertEqual(store.backupRestoreState, .succeeded(backup.createdAt))
+        XCTAssertEqual(store.snapshot.boards.map(\.name), ["Eins"])
+        XCTAssertEqual(store.route, .overview)
+        XCTAssertNil(store.selectedItemID)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fixture.photoURL.path))
+        let persisted = try await fixture.repository.loadSnapshot()
+        XCTAssertEqual(persisted.boards.map(\.name), ["Eins"])
+
+        let kept = try FileManager.default.contentsOfDirectory(
+            at: fixture.layout.backupsRootURL,
+            includingPropertiesForKeys: nil
+        ).filter { $0.lastPathComponent.hasSuffix("-previous") }
+        let keptDatabase = try XCTUnwrap(kept.first).appendingPathComponent("inventory.sqlite")
+        let keptSnapshot = try await SQLiteInventoryRepository(databaseURL: keptDatabase).loadSnapshot()
+        XCTAssertEqual(keptSnapshot.boards.map(\.name), ["Geändert"])
+    }
+
+    func testRestoreRecoversFromFailedLoad() async throws {
+        let fixture = try await makeDataSafetyFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+        let first = fixture.makeStore()
+        await first.load()
+        await first.waitForPendingWrites()
+        let backup = try XCTUnwrap(first.latestAutomaticBackup)
+
+        try Data(repeating: 0xA5, count: 4_096).write(to: fixture.layout.currentDatabaseURL)
+        let store = fixture.makeStore()
+        await store.load()
+        guard case .failed = store.loadState else {
+            return XCTFail("Load should have failed")
+        }
+
+        await store.restoreAutomaticBackup(backup)
+
+        XCTAssertEqual(store.loadState, .loaded)
+        XCTAssertEqual(store.snapshot.boards.map(\.name), ["Eins"])
+    }
+
+    private struct DataSafetyFixture {
+        var root: URL
+        var layout: MigrationStorageLayout
+        var photoURL: URL
+        var repository: SQLiteInventoryRepository
+        var defaults: UserDefaults
+
+        @MainActor
+        func makeStore() -> InventoryStore {
+            let exporter = BackupExportService(layout: layout)
+            return InventoryStore(
+                repository: repository,
+                migrationCommitService: MigrationCommitService(layout: layout),
+                backupExportService: exporter,
+                photoService: PhotoImportService(layout: layout),
+                automaticBackupService: AutomaticBackupService(
+                    directoryURL: layout.automaticBackupsRootURL,
+                    exporter: exporter
+                ),
+                automaticBackupsEnabled: { true },
+                backupDefaults: defaults
+            )
+        }
+    }
+
+    private func makeDataSafetyFixture() async throws -> DataSafetyFixture {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("KeyboardManagerDataSafety-\(UUID().uuidString)", isDirectory: true)
+        let layout = MigrationStorageLayout(rootURL: root)
+        try FileManager.default.createDirectory(
+            at: layout.currentPhotosDirectoryURL,
+            withIntermediateDirectories: true
+        )
+        let png = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        ))
+        let photoURL = layout.currentPhotosDirectoryURL.appendingPathComponent("photo_1.png")
+        try png.write(to: photoURL)
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        let repository = SQLiteInventoryRepository(databaseURL: layout.currentDatabaseURL)
+        let snapshot = InventorySnapshot(
+            metadata: AppMetadata(schemaVersion: 1, createdAt: date, updatedAt: date, preferredLanguage: "de"),
+            libraryValues: .empty,
+            boards: [
+                Board(
+                    id: "board_1",
+                    name: "Eins",
+                    photoIDs: ["photo_1"],
+                    mainPhotoID: "photo_1",
+                    createdAt: date,
+                    updatedAt: date
+                )
+            ],
+            keycapSets: [],
+            artisanSets: [],
+            switchSets: [],
+            switchInstallations: [],
+            photos: [
+                PhotoRecord(
+                    id: "photo_1",
+                    owner: PhotoOwner(type: .board, id: "board_1"),
+                    originalName: "pixel.png",
+                    mimeType: .png,
+                    pixelWidth: 1,
+                    pixelHeight: 1,
+                    addedAt: date,
+                    relativeFileName: "photo_1.png"
+                )
+            ]
+        )
+        try await repository.saveSnapshot(snapshot)
+        let suiteName = "KeyboardManagerDataSafety-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        return DataSafetyFixture(
+            root: root,
+            layout: layout,
+            photoURL: photoURL,
+            repository: repository,
+            defaults: defaults
+        )
+    }
+
     func testCleanEditorAllowsWindowToCloseImmediately() {
         let store = makeStore()
         store.prepareNewItem(.board)

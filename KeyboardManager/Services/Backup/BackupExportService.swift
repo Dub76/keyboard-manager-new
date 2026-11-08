@@ -23,6 +23,7 @@ enum BackupExportError: LocalizedError, Sendable {
     case manifestTooLarge
     case archiveTooLarge
     case validationFailed(String)
+    case mirrorUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -52,6 +53,8 @@ enum BackupExportError: LocalizedError, Sendable {
             L10n.text("Die Bestandsdaten überschreiten das Manifest-Limit von 10 MiB.")
         case .archiveTooLarge:
             L10n.text("Das fertige ZIP überschreitet das Limit von 500 MiB.")
+        case let .mirrorUnavailable(path):
+            L10n.text("Der zweite Backup-Ort „%@“ ist nicht erreichbar.", arguments: path)
         case let .validationFailed(message):
             L10n.text(
                 "Das erzeugte Backup hat die Kontrollprüfung nicht bestanden: %@",
@@ -743,6 +746,46 @@ actor AutomaticBackupService {
         for entry in entries().dropFirst(retainedCount) {
             try? fileManager.removeItem(at: entry.url)
         }
+    }
+
+    /// Copies automatic backups missing in a second location and applies the
+    /// same retention there, so a drive that was away catches up later.
+    /// The folder must already exist: creating it could otherwise leave a
+    /// stray local folder where an unplugged drive is normally mounted.
+    @discardableResult
+    func syncMirror(to mirrorURL: URL) throws -> Int {
+        let mirrorURL = mirrorURL.standardizedFileURL
+        guard mirrorURL != directoryURL else { return 0 }
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: mirrorURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw BackupExportError.mirrorUnavailable(mirrorURL.path)
+        }
+
+        var copied = 0
+        for entry in entries().prefix(retainedCount) {
+            let target = mirrorURL.appendingPathComponent(entry.url.lastPathComponent)
+            guard !fileManager.fileExists(atPath: target.path) else { continue }
+            let partial = mirrorURL.appendingPathComponent(
+                ".\(entry.url.lastPathComponent).partial-\(UUID().uuidString)"
+            )
+            defer { try? fileManager.removeItem(at: partial) }
+            try fileManager.copyItem(at: entry.url, to: partial)
+            try fileManager.moveItem(at: partial, to: target)
+            copied += 1
+        }
+
+        let mirrored = (try fileManager.contentsOfDirectory(
+            at: mirrorURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ))
+        .compactMap(Self.entry(for:))
+        .sorted { $0.createdAt > $1.createdAt }
+        for entry in mirrored.dropFirst(retainedCount) {
+            try? fileManager.removeItem(at: entry.url)
+        }
+        return copied
     }
 
     static func fingerprint(of snapshot: InventorySnapshot) throws -> String {
