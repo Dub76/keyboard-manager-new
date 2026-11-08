@@ -13,6 +13,9 @@ struct SidebarView: View {
                         .tag(route)
                         .accessibilityIdentifier("sidebar.\(route.rawValue)")
                 }
+                Label(AppRoute.statistics.title, systemImage: AppRoute.statistics.systemImage)
+                    .tag(AppRoute.statistics)
+                    .accessibilityIdentifier("sidebar.\(AppRoute.statistics.rawValue)")
             }
 
             Section(isExpanded: $isDataSectionExpanded) {

@@ -21,6 +21,26 @@
         }
       }
     },
+    "„%@“ ist kein gültiger Preis.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” is not a valid price."
+          }
+        }
+      }
+    },
+    "„%@“ ist keine gültige Grammangabe.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” is not a valid weight in grams."
+          }
+        }
+      }
+    },
     "„%@“ konnte nicht als Bild gelesen werden.": {
       "localizations": {
         "en": {
@@ -253,6 +273,16 @@
         }
       }
     },
+    "%lld ohne Preis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld without price"
+          }
+        }
+      }
+    },
     "%lld Quelle(n) bereit": {
       "localizations": {
         "en": {
@@ -309,6 +339,16 @@
         }
       }
     },
+    "Acryl": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acrylic"
+          }
+        }
+      }
+    },
     "Aktuelle Filter anwenden": {
       "localizations": {
         "en": {
@@ -339,12 +379,32 @@
         }
       }
     },
+    "Alle Materialien": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All materials"
+          }
+        }
+      }
+    },
     "Alle Pins": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "All pins"
+          }
+        }
+      }
+    },
+    "Alle Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All statuses"
           }
         }
       }
@@ -729,6 +789,16 @@
         }
       }
     },
+    "Bestellt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ordered"
+          }
+        }
+      }
+    },
     "Betätigung": {
       "localizations": {
         "en": {
@@ -851,6 +921,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bottom-out"
+          }
+        }
+      }
+    },
+    "Case-Material": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Case material"
           }
         }
       }
@@ -1785,6 +1865,16 @@
         }
       }
     },
+    "Durchschnittspreis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Average price"
+          }
+        }
+      }
+    },
     "Edelstahl": {
       "localizations": {
         "en": {
@@ -2405,22 +2495,32 @@
         }
       }
     },
-    "Gewicht": {
+    "Gewicht (g)": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weight"
+            "value": "Weight (g)"
           }
         }
       }
     },
-    "Gewicht: %@": {
+    "Gewicht-Material": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weight: %@"
+            "value": "Weight material"
+          }
+        }
+      }
+    },
+    "Gewicht-Material: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight material: %@"
           }
         }
       }
@@ -2715,6 +2815,36 @@
         }
       }
     },
+    "Kauf": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase"
+          }
+        }
+      }
+    },
+    "Kaufdatum": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase date"
+          }
+        }
+      }
+    },
+    "Kaufdatum angeben": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add purchase date"
+          }
+        }
+      }
+    },
     "Kein Foto": {
       "localizations": {
         "en": {
@@ -2751,6 +2881,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No changes"
+          }
+        }
+      }
+    },
+    "Keine Daten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No data"
           }
         }
       }
@@ -2865,6 +3005,16 @@
         }
       }
     },
+    "Keyboards in der Sammlung": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboards in collection"
+          }
+        }
+      }
+    },
     "Keycap-Set": {
       "localizations": {
         "en": {
@@ -2971,6 +3121,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copper"
+          }
+        }
+      }
+    },
+    "Layout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout"
           }
         }
       }
@@ -3185,6 +3345,16 @@
         }
       }
     },
+    "Mounting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mounting"
+          }
+        }
+      }
+    },
     "Nach Beenden erneut suchen": {
       "localizations": {
         "en": {
@@ -3365,6 +3535,16 @@
         }
       }
     },
+    "Noch keine Keyboards": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No keyboards yet"
+          }
+        }
+      }
+    },
     "Noch keine lokalen Fotos.": {
       "localizations": {
         "en": {
@@ -3451,6 +3631,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Opens the large view"
+          }
+        }
+      }
+    },
+    "Ohne Angabe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not specified"
           }
         }
       }
@@ -3565,12 +3755,42 @@
         }
       }
     },
+    "Polycarbonat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polycarbonate"
+          }
+        }
+      }
+    },
     "Pre-Travel": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Pre-travel"
+          }
+        }
+      }
+    },
+    "Preis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price"
+          }
+        }
+      }
+    },
+    "Preis (€)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price (€)"
           }
         }
       }
@@ -3735,6 +3955,16 @@
         }
       }
     },
+    "Sammlungswert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collection value"
+          }
+        }
+      }
+    },
     "Schließen": {
       "localizations": {
         "en": {
@@ -3791,6 +4021,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The snapshot does not contain any data."
+          }
+        }
+      }
+    },
+    "Sobald Keyboards erfasst sind, erscheinen hier die Kennzahlen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Key figures appear here once keyboards have been added."
           }
         }
       }
@@ -3891,6 +4131,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "State of %@ restored."
+          }
+        }
+      }
+    },
+    "Statistik": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistics"
           }
         }
       }
@@ -4001,6 +4251,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tags, separated by commas"
+          }
+        }
+      }
+    },
+    "Tippwinkel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Typing angle"
           }
         }
       }
@@ -4325,6 +4585,16 @@
         }
       }
     },
+    "Verkauft": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sold"
+          }
+        }
+      }
+    },
     "Version %@": {
       "localizations": {
         "en": {
@@ -4341,6 +4611,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "of %lld"
+          }
+        }
+      }
+    },
+    "Vorhanden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Owned"
           }
         }
       }
@@ -4425,12 +4705,32 @@
         }
       }
     },
+    "Weitere": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
     "Werkseitig geschmiert": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Factory lubed"
+          }
+        }
+      }
+    },
+    "Wert und Auswertungen zählen vorhandene und bestellte Keyboards. Verkaufte und Wunschliste erscheinen nur beim Status.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value and breakdowns count owned and ordered keyboards. Sold and wishlist boards appear only under status."
           }
         }
       }
@@ -4481,6 +4781,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saving…"
+          }
+        }
+      }
+    },
+    "Wunschliste": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wishlist"
           }
         }
       }

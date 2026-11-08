@@ -532,18 +532,45 @@ final class InventoryStore {
     /// Common weight materials are offered from the start; materials the
     /// user entered come first and are not repeated.
     func weightMaterialSuggestions() -> [String] {
-        let defaults = [
+        suggestions(for: "boardWeightMaterials", defaults: [
             L10n.text("Aluminium"),
             L10n.text("Edelstahl"),
             L10n.text("Kupfer"),
             L10n.text("Messing"),
             L10n.text("Stahl"),
             L10n.text("Titan")
-        ]
+        ])
+    }
+
+    func mountingSuggestions() -> [String] {
+        suggestions(for: "boardMountings", defaults: [
+            "Gasket", "Top Mount", "Tray Mount", "Sandwich", "Leaf Spring", "O-Ring"
+        ])
+    }
+
+    func caseMaterialSuggestions() -> [String] {
+        suggestions(for: "boardCaseMaterials", defaults: [
+            L10n.text("Aluminium"),
+            L10n.text("Polycarbonat"),
+            L10n.text("Acryl"),
+            L10n.text("Messing"),
+            L10n.text("Kupfer")
+        ])
+    }
+
+    func layoutSuggestions() -> [String] {
+        suggestions(for: "boardLayouts", defaults: ["ANSI", "ISO", "ANSI/ISO"])
+    }
+
+    private func suggestions(for key: String, defaults: [String]) -> [String] {
         var seen = Set<String>()
-        return (libraryValues(for: "boardWeightMaterials") + defaults).filter {
+        return (libraryValues(for: key) + defaults).filter {
             seen.insert($0.lowercased()).inserted
         }
+    }
+
+    var statistics: InventoryStatistics {
+        InventoryStatistics(snapshot: snapshot)
     }
 
     private var needsDiscardConfirmation: Bool {

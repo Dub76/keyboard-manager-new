@@ -332,6 +332,8 @@ struct ContentView: View {
             CaptureView(store: store)
         case .gallery:
             GalleryView(store: store)
+        case .statistics:
+            StatisticsView(store: store)
         case .migration:
             MigrationView(store: store)
         }

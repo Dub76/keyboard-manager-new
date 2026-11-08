@@ -178,6 +178,15 @@ final class BackupExportServiceTests: XCTestCase {
         var colored = fixture.snapshot
         colored.boards[0].color = "Navy"
         colored.boards[0].weightMaterial = "Messing"
+        colored.boards[0].status = .ordered
+        colored.boards[0].purchasePrice = Decimal(string: "275.5")
+        colored.boards[0].purchaseDate = Date(timeIntervalSince1970: 1_700_000_000)
+        colored.boards[0].purchaseShop = "MonacoKeys"
+        colored.boards[0].mounting = "Gasket"
+        colored.boards[0].caseMaterial = "Kupfer"
+        colored.boards[0].layout = "ANSI"
+        colored.boards[0].typingAngle = "7°"
+        colored.boards[0].weightGrams = 1450
         let coloredURL = fixture.directory.appendingPathComponent("colored.zip")
         let plainURL = fixture.directory.appendingPathComponent("plain.zip")
 
@@ -187,6 +196,16 @@ final class BackupExportServiceTests: XCTestCase {
         let restored = try await V1BackupReader().inspect(at: coloredURL)
         XCTAssertEqual(restored.snapshot.boards.first?.color, "Navy")
         XCTAssertEqual(restored.snapshot.boards.first?.weightMaterial, "Messing")
+        let restoredBoard = try XCTUnwrap(restored.snapshot.boards.first)
+        XCTAssertEqual(restoredBoard.status, .ordered)
+        XCTAssertEqual(restoredBoard.purchasePrice, Decimal(string: "275.5"))
+        XCTAssertEqual(restoredBoard.purchaseDate, Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertEqual(restoredBoard.purchaseShop, "MonacoKeys")
+        XCTAssertEqual(restoredBoard.mounting, "Gasket")
+        XCTAssertEqual(restoredBoard.caseMaterial, "Kupfer")
+        XCTAssertEqual(restoredBoard.layout, "ANSI")
+        XCTAssertEqual(restoredBoard.typingAngle, "7°")
+        XCTAssertEqual(restoredBoard.weightGrams, 1450)
 
         let archive = try Archive(url: plainURL, accessMode: .read)
         let manifestEntry = try XCTUnwrap(archive["manifest.json"])
@@ -194,6 +213,9 @@ final class BackupExportServiceTests: XCTestCase {
         _ = try archive.extract(manifestEntry) { manifest.append($0) }
         XCTAssertFalse(String(decoding: manifest, as: UTF8.self).contains("\"color\""))
         XCTAssertFalse(String(decoding: manifest, as: UTF8.self).contains("\"weightMaterial\""))
+        for key in ["purchasePrice", "purchaseShop", "mounting", "weightGrams"] {
+            XCTAssertFalse(String(decoding: manifest, as: UTF8.self).contains("\"\(key)\""), key)
+        }
     }
 
     func testAutomaticBackupRunsDailyOnlyOnChangesAndKeepsNewest() async throws {

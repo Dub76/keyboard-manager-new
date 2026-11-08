@@ -7,6 +7,8 @@ enum InventoryEditingError: LocalizedError, Equatable, Sendable {
     case invalidQuantity(String)
     case missingItem
     case invalidMainPhoto
+    case invalidPrice(String)
+    case invalidWeightGrams(String)
 
     var errorDescription: String? {
         switch self {
@@ -25,6 +27,10 @@ enum InventoryEditingError: LocalizedError, Equatable, Sendable {
             L10n.text("Der zu bearbeitende Eintrag wurde nicht gefunden.")
         case .invalidMainPhoto:
             L10n.text("Das Hauptfoto gehört nicht zur Fotoliste dieses Eintrags.")
+        case let .invalidPrice(value):
+            L10n.text("„%@“ ist kein gültiger Preis.", arguments: value)
+        case let .invalidWeightGrams(value):
+            L10n.text("„%@“ ist keine gültige Grammangabe.", arguments: value)
         }
     }
 }
@@ -205,6 +211,16 @@ struct InventoryEditingService: Sendable {
         if let mainPhotoID = draft.mainPhotoID, !validPhotoIDs.contains(mainPhotoID) {
             throw InventoryEditingError.invalidMainPhoto
         }
+        if draft.kind == .board {
+            let price = draft.purchasePriceText.trimmed
+            if !price.isEmpty, BoardValueFormat.parsePrice(price) == nil {
+                throw InventoryEditingError.invalidPrice(price)
+            }
+            let grams = draft.weightGramsText.trimmed
+            if !grams.isEmpty, BoardValueFormat.parseGrams(grams) == nil {
+                throw InventoryEditingError.invalidWeightGrams(grams)
+            }
+        }
         if draft.quantity < 0 {
             throw InventoryEditingError.invalidQuantity(
                 L10n.text("Der Gesamtbestand darf nicht negativ sein.")
@@ -267,6 +283,15 @@ struct InventoryEditingService: Sendable {
             format: draft.format.trimmed,
             color: draft.color.trimmed,
             weightMaterial: draft.weightMaterial.trimmed,
+            status: BoardStatus(rawValue: draft.status) ?? .owned,
+            purchasePrice: BoardValueFormat.parsePrice(draft.purchasePriceText),
+            purchaseDate: draft.purchaseDate,
+            purchaseShop: draft.purchaseShop.trimmed,
+            mounting: draft.mounting.trimmed,
+            caseMaterial: draft.caseMaterial.trimmed,
+            layout: draft.layout.trimmed,
+            typingAngle: draft.typingAngle.trimmed,
+            weightGrams: BoardValueFormat.parseGrams(draft.weightGramsText),
             plate: draft.plate.trimmed,
             pcb: draft.pcb.trimmed,
             stabilizers: draft.stabilizers.trimmed,
@@ -422,6 +447,10 @@ struct InventoryEditingService: Sendable {
                 ("formats", draft.format),
                 ("boardColors", draft.color),
                 ("boardWeightMaterials", draft.weightMaterial),
+                ("boardShops", draft.purchaseShop),
+                ("boardMountings", draft.mounting),
+                ("boardCaseMaterials", draft.caseMaterial),
+                ("boardLayouts", draft.layout),
                 ("plates", draft.plate),
                 ("pcbs", draft.pcb),
                 ("stabs", draft.stabilizers)

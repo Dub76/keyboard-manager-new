@@ -19,6 +19,14 @@ struct InventoryDraft: Hashable, Sendable {
     var format = ""
     var color = ""
     var weightMaterial = ""
+    var purchasePriceText = ""
+    var purchaseDate: Date?
+    var purchaseShop = ""
+    var mounting = ""
+    var caseMaterial = ""
+    var layout = ""
+    var typingAngle = ""
+    var weightGramsText = ""
     var plate = ""
     var pcb = ""
     var stabilizers = ""
@@ -69,6 +77,15 @@ struct InventoryDraft: Hashable, Sendable {
         format = board.format
         color = board.color
         weightMaterial = board.weightMaterial
+        status = board.status.rawValue
+        purchasePriceText = board.purchasePrice.map { BoardValueFormat.priceText($0) } ?? ""
+        purchaseDate = board.purchaseDate
+        purchaseShop = board.purchaseShop
+        mounting = board.mounting
+        caseMaterial = board.caseMaterial
+        layout = board.layout
+        typingAngle = board.typingAngle
+        weightGramsText = board.weightGrams.map(String.init) ?? ""
         plate = board.plate
         pcb = board.pcb
         stabilizers = board.stabilizers

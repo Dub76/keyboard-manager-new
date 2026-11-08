@@ -113,6 +113,18 @@ final class KeyboardManagerUITests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: databaseURL), damaged)
     }
 
+    func testStatisticsPageOpensFromSidebar() {
+        continueAfterFailure = false
+        let app = launchIsolatedApp()
+        defer { app.terminate() }
+
+        let statistics = app.descendants(matching: .any)["sidebar.statistics"]
+        XCTAssertTrue(statistics.waitForExistence(timeout: 3))
+        statistics.click()
+
+        XCTAssertTrue(app.staticTexts["Noch keine Keyboards"].waitForExistence(timeout: 3))
+    }
+
     func testMigrationDiscoveryUsesIsolatedApplicationSupportRoot() {
         continueAfterFailure = false
         let app = launchIsolatedApp()

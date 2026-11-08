@@ -236,10 +236,28 @@ struct CaptureView: View {
             Section("Keyboard") {
                 LibraryTextField(title: "Format", text: $draft.format, values: store.libraryValues(for: "formats"))
                 LibraryTextField(title: "Farbe", text: $draft.color, values: store.libraryValues(for: "boardColors"))
-                LibraryTextField(title: "Gewicht", text: $draft.weightMaterial, values: store.weightMaterialSuggestions())
+                LibraryTextField(title: "Gewicht-Material", text: $draft.weightMaterial, values: store.weightMaterialSuggestions())
+                TextField("Gewicht (g)", text: $draft.weightGramsText)
+                LibraryTextField(title: "Layout", text: $draft.layout, values: store.layoutSuggestions())
+                LibraryTextField(title: "Mounting", text: $draft.mounting, values: store.mountingSuggestions())
+                LibraryTextField(title: "Case-Material", text: $draft.caseMaterial, values: store.caseMaterialSuggestions())
+                TextField("Tippwinkel", text: $draft.typingAngle)
                 LibraryTextField(title: "Plate", text: $draft.plate, values: store.libraryValues(for: "plates"))
                 LibraryTextField(title: "PCB", text: $draft.pcb, values: store.libraryValues(for: "pcbs"))
                 LibraryTextField(title: "Stabilisatoren", text: $draft.stabilizers, values: store.libraryValues(for: "stabs"))
+            }
+            Section("Kauf") {
+                Picker("Status", selection: $draft.status) {
+                    ForEach(BoardStatus.allCases) { status in
+                        Text(status.title).tag(status.rawValue)
+                    }
+                }
+                TextField("Preis (€)", text: $draft.purchasePriceText)
+                Toggle("Kaufdatum angeben", isOn: hasPurchaseDate)
+                if draft.purchaseDate != nil {
+                    DatePicker("Kaufdatum", selection: purchaseDate, displayedComponents: .date)
+                }
+                LibraryTextField(title: "Shop", text: $draft.purchaseShop, values: store.libraryValues(for: "boardShops"))
             }
         case .keycapSet:
             Section("Set-Inhalt") {
@@ -483,7 +501,7 @@ struct CaptureView: View {
         case .board:
             if !draft.format.isEmpty { Label(draft.format, systemImage: "rectangle.split.3x1") }
             if !draft.color.isEmpty { Label(draft.color, systemImage: "paintpalette") }
-            if !draft.weightMaterial.isEmpty { Label("Gewicht: \(draft.weightMaterial)", systemImage: "scalemass") }
+            if !draft.weightMaterial.isEmpty { Label("Gewicht-Material: \(draft.weightMaterial)", systemImage: "scalemass") }
             if !draft.pcb.isEmpty { Label("PCB: \(draft.pcb)", systemImage: "cpu") }
             if !draft.plate.isEmpty { Label("Plate: \(draft.plate)", systemImage: "square.grid.3x3") }
         case .keycapSet:
@@ -743,6 +761,20 @@ struct CaptureView: View {
                 preparedPhotos = []
             }
         }
+    }
+
+    private var hasPurchaseDate: Binding<Bool> {
+        Binding(
+            get: { draft.purchaseDate != nil },
+            set: { draft.purchaseDate = $0 ? (draft.purchaseDate ?? .now) : nil }
+        )
+    }
+
+    private var purchaseDate: Binding<Date> {
+        Binding(
+            get: { draft.purchaseDate ?? .now },
+            set: { draft.purchaseDate = $0 }
+        )
     }
 
     private func handlePhotoSelection(_ result: Result<[URL], Error>) {

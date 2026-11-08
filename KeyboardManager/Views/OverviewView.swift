@@ -132,12 +132,18 @@ struct OverviewView: View {
                     .width(min: 130, ideal: 180)
                     TableColumn("Hersteller", value: \.manufacturer)
                         .width(min: 90, ideal: 130)
-                    TableColumn("Format", value: \.format)
-                        .width(min: 65, ideal: 80)
-                    TableColumn("Farbe", value: \.color)
-                        .width(min: 60, ideal: 90)
-                    TableColumn("Gewicht", value: \.weightMaterial)
-                        .width(min: 60, ideal: 80)
+                    Group {
+                        TableColumn("Format", value: \InventoryItemSummary.format)
+                            .width(min: 65, ideal: 80)
+                        TableColumn("Farbe", value: \InventoryItemSummary.color)
+                            .width(min: 60, ideal: 90)
+                        TableColumn("Gewicht-Material", value: \InventoryItemSummary.weightMaterial)
+                            .width(min: 110, ideal: 120)
+                        TableColumn("Status", value: \InventoryItemSummary.status)
+                            .width(min: 70, ideal: 85)
+                        TableColumn("Preis", value: \InventoryItemSummary.priceText)
+                            .width(min: 60, ideal: 80)
+                    }
                     TableColumn("Switches") { row in
                         summaryCell(row.switchesSummary)
                     }

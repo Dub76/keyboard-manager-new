@@ -304,6 +304,15 @@ actor BackupExportService {
                 format: board.format,
                 color: board.color.nilIfEmpty,
                 weightMaterial: board.weightMaterial.nilIfEmpty,
+                status: board.status == .owned ? nil : board.status.rawValue,
+                purchasePrice: board.purchasePrice,
+                purchaseDate: board.purchaseDate.map(milliseconds),
+                purchaseShop: board.purchaseShop.nilIfEmpty,
+                mounting: board.mounting.nilIfEmpty,
+                caseMaterial: board.caseMaterial.nilIfEmpty,
+                layout: board.layout.nilIfEmpty,
+                typingAngle: board.typingAngle.nilIfEmpty,
+                weightGrams: board.weightGrams,
                 plate: board.plate,
                 pcb: board.pcb,
                 keycaps: board.legacyKeycapsName,
@@ -530,6 +539,15 @@ private struct V1ExportBoard: Encodable {
     /// V2-only; left out of the JSON when empty, so V1 sees its usual format.
     var color: String?
     var weightMaterial: String?
+    var status: String?
+    var purchasePrice: Decimal?
+    var purchaseDate: Int64?
+    var purchaseShop: String?
+    var mounting: String?
+    var caseMaterial: String?
+    var layout: String?
+    var typingAngle: String?
+    var weightGrams: Int?
     var plate: String
     var pcb: String
     var keycaps: String

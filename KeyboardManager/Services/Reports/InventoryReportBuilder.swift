@@ -74,6 +74,14 @@ enum InventoryReportBuilder {
                         values: [
                             .text(board.name), .text(board.manufacturer), .text(board.format),
                             .text(board.color), .text(board.weightMaterial),
+                            .text(board.status.title(language: language)),
+                            .text(board.purchasePrice.map {
+                                BoardValueFormat.displayPrice($0, language: AppLanguage.normalized(language))
+                            } ?? ""),
+                            board.purchaseDate.map(InventoryReportValue.date) ?? .text(""),
+                            .text(board.purchaseShop), .text(board.layout), .text(board.mounting),
+                            .text(board.caseMaterial), .text(board.typingAngle),
+                            board.weightGrams.map(InventoryReportValue.number) ?? .text(""),
                             .text(board.plate), .text(board.pcb),
                             .text(switchNames.nilIfEmpty ?? board.legacySwitchesName),
                             .text(board.keycapSetID.flatMap { keycaps[$0] } ?? board.legacyKeycapsName),
@@ -231,6 +239,9 @@ enum InventoryReportBuilder {
         if !filters.profile.isEmpty {
             parts.append(L10n.text("Profil: %@", language: language, arguments: filters.profile))
         }
+        if !filters.weightMaterial.isEmpty {
+            parts.append(L10n.text("Gewicht-Material: %@", language: language, arguments: filters.weightMaterial))
+        }
         if !filters.status.isEmpty {
             parts.append(L10n.text("Status: %@", language: language, arguments: filters.status))
         }
@@ -267,7 +278,16 @@ enum InventoryReportBuilder {
             localizedColumn("Hersteller", 18, pdf: true, language: language),
             localizedColumn("Format", 12, pdf: true, language: language),
             localizedColumn("Farbe", 14, language: language),
-            localizedColumn("Gewicht", 12, language: language),
+            localizedColumn("Gewicht-Material", 18, language: language),
+            localizedColumn("Status", 12, language: language),
+            localizedColumn("Preis", 12, language: language),
+            localizedColumn("Kaufdatum", 14, language: language),
+            localizedColumn("Shop", 16, language: language),
+            localizedColumn("Layout", 10, language: language),
+            localizedColumn("Mounting", 14, language: language),
+            localizedColumn("Case-Material", 16, language: language),
+            localizedColumn("Tippwinkel", 10, language: language),
+            localizedColumn("Gewicht (g)", 11, language: language),
             localizedColumn("Plate", 16, language: language),
             localizedColumn("PCB", 18, language: language),
             localizedColumn("Switches", 22, pdf: true, language: language),

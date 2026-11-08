@@ -15,6 +15,7 @@ struct InventoryItemSummary: Identifiable, Hashable, Sendable {
     var format: String
     var color = ""
     var weightMaterial = ""
+    var priceText = ""
     var profile: String
     var status: String
     var switchType: String
@@ -62,6 +63,7 @@ struct InventoryFilters: Equatable, Sendable {
     var manufacturer = ""
     var format = ""
     var color = ""
+    var weightMaterial = ""
     var profile = ""
     var status = ""
     var switchType = ""
@@ -73,11 +75,67 @@ struct InventoryFilters: Equatable, Sendable {
         switch kind {
         case .board:
             return manufacturer.isEmpty && format.isEmpty && color.isEmpty
+                && weightMaterial.isEmpty && status.isEmpty
         case .keycapSet, .artisanSet:
             return manufacturer.isEmpty && profile.isEmpty && status.isEmpty
         case .switchSet:
             return switchType.isEmpty && operatingForce.isEmpty && pins == nil
         }
+    }
+}
+
+/// Key figures of the keyboard collection. The value and the breakdowns
+/// cover boards that are owned or ordered; sold boards and wishes appear
+/// only in the status breakdown.
+struct InventoryStatistics: Equatable, Sendable {
+    struct Bucket: Identifiable, Equatable, Sendable {
+        var label: String
+        var count: Int
+        var id: String { label }
+    }
+
+    static let maximumBuckets = 8
+
+    var collectionBoardCount = 0
+    var collectionValue: Decimal = 0
+    var pricedBoardCount = 0
+    var averagePrice: Decimal?
+    var byStatus: [Bucket] = []
+    var byManufacturer: [Bucket] = []
+    var byFormat: [Bucket] = []
+    var byColor: [Bucket] = []
+    var byWeightMaterial: [Bucket] = []
+
+    var unpricedBoardCount: Int { collectionBoardCount - pricedBoardCount }
+
+    init(snapshot: InventorySnapshot) {
+        byStatus = BoardStatus.allCases.compactMap { status in
+            let count = snapshot.boards.filter { $0.status == status }.count
+            return count > 0 ? Bucket(label: status.title, count: count) : nil
+        }
+        let boards = snapshot.boards.filter(\.status.countsTowardsCollection)
+        collectionBoardCount = boards.count
+        let prices = boards.compactMap(\.purchasePrice)
+        pricedBoardCount = prices.count
+        collectionValue = prices.reduce(0, +)
+        averagePrice = prices.isEmpty ? nil : collectionValue / Decimal(prices.count)
+        byManufacturer = Self.buckets(boards.map(\.manufacturer))
+        byFormat = Self.buckets(boards.map(\.format))
+        byColor = Self.buckets(boards.map(\.color))
+        byWeightMaterial = Self.buckets(boards.map(\.weightMaterial))
+    }
+
+    /// Largest groups first; everything beyond the limit folds into "Weitere".
+    static func buckets(_ values: [String]) -> [Bucket] {
+        let groups = Dictionary(grouping: values) { value in
+            value.isEmpty ? L10n.text("Ohne Angabe") : value
+        }
+        let sorted = groups
+            .map { Bucket(label: $0.key, count: $0.value.count) }
+            .sorted { ($0.count, $1.label) > ($1.count, $0.label) }
+        guard sorted.count > maximumBuckets else { return sorted }
+        let rest = sorted.dropFirst(maximumBuckets - 1).reduce(0) { $0 + $1.count }
+        return Array(sorted.prefix(maximumBuckets - 1)) + [Bucket(label: L10n.text("Weitere"), count: rest)]
     }
 }
 
@@ -158,8 +216,9 @@ enum InventoryQuery {
                     format: board.format,
                     color: board.color,
                     weightMaterial: board.weightMaterial,
+                    priceText: board.purchasePrice.map { BoardValueFormat.displayPrice($0) } ?? "",
                     profile: "",
-                    status: "",
+                    status: board.status.title,
                     switchType: "",
                     operatingForce: "",
                     pins: nil,
@@ -178,7 +237,22 @@ enum InventoryQuery {
                         .init(label: L10n.text("Hersteller"), value: board.manufacturer),
                         .init(label: L10n.text("Format"), value: board.format),
                         .init(label: L10n.text("Farbe"), value: board.color),
-                        .init(label: L10n.text("Gewicht"), value: board.weightMaterial),
+                        .init(label: L10n.text("Gewicht-Material"), value: board.weightMaterial),
+                        .init(label: L10n.text("Gewicht (g)"), value: board.weightGrams.map(String.init) ?? ""),
+                        .init(label: L10n.text("Status"), value: board.status.title),
+                        .init(
+                            label: L10n.text("Preis"),
+                            value: board.purchasePrice.map { BoardValueFormat.displayPrice($0) } ?? ""
+                        ),
+                        .init(
+                            label: L10n.text("Kaufdatum"),
+                            value: board.purchaseDate?.formatted(date: .abbreviated, time: .omitted) ?? ""
+                        ),
+                        .init(label: L10n.text("Shop"), value: board.purchaseShop),
+                        .init(label: L10n.text("Layout"), value: board.layout),
+                        .init(label: L10n.text("Mounting"), value: board.mounting),
+                        .init(label: L10n.text("Case-Material"), value: board.caseMaterial),
+                        .init(label: L10n.text("Tippwinkel"), value: board.typingAngle),
                         .init(label: "PCB", value: board.pcb),
                         .init(label: "Plate", value: board.plate),
                         .init(label: L10n.text("Stabilisatoren"), value: board.stabilizers),
@@ -355,6 +429,7 @@ enum InventoryQuery {
                     && matchesExact(item.manufacturer, filters.manufacturer)
                     && matchesExact(item.format, filters.format)
                     && matchesExact(item.color, filters.color)
+                    && matchesExact(item.weightMaterial, filters.weightMaterial)
                     && matchesExact(item.profile, filters.profile)
                     && matchesExact(item.status, filters.status)
                     && matchesExact(item.switchType, filters.switchType)

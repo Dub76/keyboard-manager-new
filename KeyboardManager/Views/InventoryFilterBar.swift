@@ -49,13 +49,29 @@ struct InventoryFilterBar: View {
                 title: "Format",
                 allTitle: "Alle Formate",
                 selection: $filters.format,
-                values: InventoryQuery.values(\.format, in: items)
+                values: InventoryQuery.values(\.format, in: items),
+                width: 175
             )
             stringPicker(
                 title: "Farbe",
                 allTitle: "Alle Farben",
                 selection: $filters.color,
-                values: InventoryQuery.values(\.color, in: items)
+                values: InventoryQuery.values(\.color, in: items),
+                width: 175
+            )
+            stringPicker(
+                title: "Gewicht-Material",
+                allTitle: "Alle Materialien",
+                selection: $filters.weightMaterial,
+                values: InventoryQuery.values(\.weightMaterial, in: items),
+                width: 260
+            )
+            stringPicker(
+                title: "Status",
+                allTitle: "Alle Status",
+                selection: $filters.status,
+                values: InventoryQuery.values(\.status, in: items),
+                width: 160
             )
         case .keycapSet, .artisanSet:
             stringPicker(
@@ -103,7 +119,8 @@ struct InventoryFilterBar: View {
         title: String,
         allTitle: String,
         selection: Binding<String>,
-        values: [String]
+        values: [String],
+        width: CGFloat = 190
     ) -> some View {
         Picker(title, selection: selection) {
             Text(allTitle).tag("")
@@ -111,6 +128,6 @@ struct InventoryFilterBar: View {
                 Text(value).tag(value)
             }
         }
-        .frame(width: 190)
+        .frame(width: width)
     }
 }

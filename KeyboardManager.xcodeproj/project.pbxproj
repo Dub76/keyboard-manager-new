@@ -20,6 +20,7 @@
 		00000000000000000000000B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000B /* ContentView.swift */; };
 		00000000000000000000000C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000C /* SidebarView.swift */; };
 		00000000000000000000000D /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000D /* OverviewView.swift */; };
+		0000000000000000000000F1 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F1 /* StatisticsView.swift */; };
 		00000000000000000000000E /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000E /* CaptureView.swift */; };
 		00000000000000000000000F /* GalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000000F /* GalleryView.swift */; };
 		000000000000000000000010 /* MigrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000010 /* MigrationView.swift */; };
@@ -105,6 +106,7 @@
 		10000000000000000000000B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		10000000000000000000000C /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		10000000000000000000000D /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		1000000000000000000000F1 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		10000000000000000000000E /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
 		10000000000000000000000F /* GalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GalleryView.swift; sourceTree = "<group>"; };
 		100000000000000000000010 /* MigrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationView.swift; sourceTree = "<group>"; };
@@ -321,6 +323,7 @@
 				10000000000000000000000B /* ContentView.swift */,
 				10000000000000000000000C /* SidebarView.swift */,
 				10000000000000000000000D /* OverviewView.swift */,
+				1000000000000000000000F1 /* StatisticsView.swift */,
 				10000000000000000000000E /* CaptureView.swift */,
 				10000000000000000000000F /* GalleryView.swift */,
 				100000000000000000000010 /* MigrationView.swift */,
@@ -530,6 +533,7 @@
 				00000000000000000000000B /* ContentView.swift in Sources */,
 				00000000000000000000000C /* SidebarView.swift in Sources */,
 				00000000000000000000000D /* OverviewView.swift in Sources */,
+				0000000000000000000000F1 /* StatisticsView.swift in Sources */,
 				00000000000000000000000E /* CaptureView.swift in Sources */,
 				00000000000000000000000F /* GalleryView.swift in Sources */,
 				000000000000000000000010 /* MigrationView.swift in Sources */,
@@ -646,7 +650,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Keyboard Manager";
@@ -657,7 +661,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.r3d42.KeyboardManagerV2;
 				PRODUCT_MODULE_NAME = KeyboardManager;
 				PRODUCT_NAME = "Keyboard Manager";
@@ -673,7 +677,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Keyboard Manager";
@@ -684,7 +688,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.r3d42.KeyboardManagerV2;
 				PRODUCT_MODULE_NAME = KeyboardManager;
 				PRODUCT_NAME = "Keyboard Manager";

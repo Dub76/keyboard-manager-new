@@ -22,6 +22,10 @@ final class InventoryModelsTests: XCTestCase {
         var boards = try XCTUnwrap(json["boards"] as? [[String: Any]])
         boards[0].removeValue(forKey: "color")
         boards[0].removeValue(forKey: "weightMaterial")
+        for key in ["status", "purchasePrice", "purchaseDate", "purchaseShop", "mounting",
+                    "caseMaterial", "layout", "typingAngle", "weightGrams"] {
+            boards[0].removeValue(forKey: key)
+        }
         json["boards"] = boards
         let legacyData = try JSONSerialization.data(withJSONObject: json)
 
@@ -31,6 +35,9 @@ final class InventoryModelsTests: XCTestCase {
 
         XCTAssertEqual(decoded.boards.first?.color, "")
         XCTAssertEqual(decoded.boards.first?.weightMaterial, "")
+        XCTAssertEqual(decoded.boards.first?.status, .owned)
+        XCTAssertNil(decoded.boards.first?.purchasePrice)
+        XCTAssertNil(decoded.boards.first?.weightGrams)
         XCTAssertEqual(decoded.boards.first?.format, "65%")
 
         var colored = decoded
@@ -104,6 +111,109 @@ final class InventoryModelsTests: XCTestCase {
 
         first.release()
         XCTAssertTrue(second.acquire())
+    }
+
+    func testPriceAndGramsParsing() {
+        let cases: [(String, Decimal?)] = [
+            ("349,99", Decimal(string: "349.99")),
+            ("349.99", Decimal(string: "349.99")),
+            ("1.234,50", Decimal(string: "1234.5")),
+            ("1,234.50", Decimal(string: "1234.5")),
+            ("1.234", 1234),
+            ("275 €", 275),
+            ("0", 0),
+            ("abc", nil),
+            ("-5", nil),
+            ("", nil)
+        ]
+        for (text, expected) in cases {
+            XCTAssertEqual(BoardValueFormat.parsePrice(text), expected, text)
+        }
+        XCTAssertEqual(BoardValueFormat.parseGrams("1200"), 1200)
+        XCTAssertEqual(BoardValueFormat.parseGrams("1.200 g"), 1200)
+        XCTAssertNil(BoardValueFormat.parseGrams("schwer"))
+        XCTAssertNil(BoardValueFormat.parseGrams("0"))
+    }
+
+    func testBoardPurchaseAndSpecFieldsRoundTripThroughEditor() throws {
+        var draft = InventoryDraft(kind: .board)
+        draft.name = "Neo60"
+        draft.status = BoardStatus.ordered.rawValue
+        draft.purchasePriceText = "275,50"
+        draft.purchaseDate = Date(timeIntervalSince1970: 1_700_000_000)
+        draft.purchaseShop = " MonacoKeys "
+        draft.mounting = "Gasket"
+        draft.caseMaterial = "Kupfer"
+        draft.layout = "ANSI"
+        draft.typingAngle = "7°"
+        draft.weightGramsText = "1.450"
+
+        let saved = try InventoryEditingService().saving(draft, newPhotos: [], in: .empty).snapshot
+        let board = try XCTUnwrap(saved.boards.first)
+
+        XCTAssertEqual(board.status, .ordered)
+        XCTAssertEqual(board.purchasePrice, Decimal(string: "275.5"))
+        XCTAssertEqual(board.purchaseShop, "MonacoKeys")
+        XCTAssertEqual(board.weightGrams, 1450)
+        XCTAssertEqual(saved.libraryValues.valuesByKey["boardMountings"], ["Gasket"])
+        let reopened = InventoryDraft(board: board, installations: [])
+        XCTAssertEqual(BoardValueFormat.parsePrice(reopened.purchasePriceText), board.purchasePrice)
+        XCTAssertEqual(reopened.status, "ordered")
+        XCTAssertEqual(reopened.weightGramsText, "1450")
+
+        draft.purchasePriceText = "teuer"
+        XCTAssertThrowsError(try InventoryEditingService().saving(draft, newPhotos: [], in: .empty)) {
+            XCTAssertEqual($0 as? InventoryEditingError, .invalidPrice("teuer"))
+        }
+    }
+
+    func testStatisticsCountOwnedAndOrderedBoardsOnly() {
+        var snapshot = InventorySnapshot.empty
+        snapshot.boards = [
+            Board(id: "1", name: "A", manufacturer: "Neo", color: "Schwarz", purchasePrice: 100),
+            Board(id: "2", name: "B", manufacturer: "Neo", status: .ordered, purchasePrice: 300),
+            Board(id: "3", name: "C", manufacturer: "Geon"),
+            Board(id: "4", name: "D", manufacturer: "Alt", status: .sold, purchasePrice: 999),
+            Board(id: "5", name: "E", manufacturer: "Traum", status: .wishlist, purchasePrice: 888)
+        ]
+
+        let statistics = InventoryStatistics(snapshot: snapshot)
+
+        XCTAssertEqual(statistics.collectionBoardCount, 3)
+        XCTAssertEqual(statistics.collectionValue, 400)
+        XCTAssertEqual(statistics.averagePrice, 200)
+        XCTAssertEqual(statistics.unpricedBoardCount, 1)
+        XCTAssertEqual(statistics.byManufacturer.map(\.label), ["Neo", "Geon"])
+        XCTAssertEqual(statistics.byManufacturer.first?.count, 2)
+        XCTAssertEqual(statistics.byStatus.map(\.count), [2, 1, 1, 1])
+        XCTAssertTrue(statistics.byColor.contains { $0.label == L10n.text("Ohne Angabe") && $0.count == 2 })
+    }
+
+    func testStatisticsFoldRareValuesAndFilterByStatusAndWeight() {
+        let values = (1...12).map { "Marke \($0)" }
+        let buckets = InventoryStatistics.buckets(values)
+        XCTAssertEqual(buckets.count, InventoryStatistics.maximumBuckets)
+        XCTAssertEqual(buckets.last?.label, L10n.text("Weitere"))
+        XCTAssertEqual(buckets.map(\.count).reduce(0, +), 12)
+
+        var snapshot = InventorySnapshot.empty
+        snapshot.boards = [
+            Board(id: "1", name: "Messing", weightMaterial: "Messing"),
+            Board(id: "2", name: "Verkauft", weightMaterial: "Kupfer", status: .sold)
+        ]
+        var filters = InventoryFilters()
+        filters.weightMaterial = "Messing"
+        XCTAssertEqual(
+            InventoryQuery.results(in: snapshot, kind: .board, filters: filters, sort: .name).map(\.name),
+            ["Messing"]
+        )
+        filters = InventoryFilters()
+        filters.status = BoardStatus.sold.title
+        XCTAssertFalse(filters.isEmpty(for: .board))
+        XCTAssertEqual(
+            InventoryQuery.results(in: snapshot, kind: .board, filters: filters, sort: .name).map(\.name),
+            ["Verkauft"]
+        )
     }
 
     func testPrimaryNavigationUsesOverviewGalleryCaptureOrder() {
