@@ -121,9 +121,9 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
         guard currentVersion < version else {
             return .upToDate
         }
-        guard let diskImage = release.assets.first(where: {
-            $0.name.hasSuffix("-universal.dmg")
-        }) else {
+        // This fork publishes Apple Silicon builds; universal ones still work.
+        guard let diskImage = release.assets.first(where: { $0.name.hasSuffix("-arm64.dmg") })
+            ?? release.assets.first(where: { $0.name.hasSuffix("-universal.dmg") }) else {
             throw AppUpdateError.noInstallableDiskImage
         }
         guard let checksum = release.assets.first(where: {
@@ -162,7 +162,7 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
 
         let updatesDirectory = try Self.updatesDirectory()
         let destinationURL = updatesDirectory.appendingPathComponent(
-            "Keyboard-Manager-\(update.version)-universal.dmg"
+            update.diskImageURL.lastPathComponent
         )
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)

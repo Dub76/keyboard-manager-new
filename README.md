@@ -25,9 +25,13 @@ Sammlung und Fotos bleiben lokal. Beim Fotoimport und in Backups entfernt die Ap
 
 ## Release
 
+**Releases dieses Forks** (`Dub76/keyboard-manager-new`) sind reine Apple-Silicon-Builds (`Keyboard-Manager-X.Y.Z-arm64.dmg`), ab macOS 14, nur ad hoc signiert und nicht von Apple notarisiert. macOS blockiert sie deshalb beim ersten Start; öffnen lassen sie sich über Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“. Die App heißt dort „Keyboard Manager V2.app“, damit eine installierte V1 nicht überschrieben wird.
+
+Der folgende Prozess beschreibt die signierten Releases des Originalprojekts:
+
 Der auslieferbare Build ist ein Developer-ID-signiertes und von Apple notarisiertes universelles DMG. Anleitung, Voraussetzungen und GitHub-CI-Konfiguration: [RELEASE.md](RELEASE.md).
 
-Die App prüft beim Start höchstens einmal täglich das neueste stabile GitHub-Release. Wenn eine neuere Version verfügbar ist, kann der Nutzer das DMG laden; vor dem Öffnen wird es gegen die mitveröffentlichte SHA-256-Datei geprüft. Diese Prüfsumme erkennt beschädigte oder unvollständige Downloads. Weil sie aus demselben Release stammt, belegt sie nicht die Herkunft; dafür sorgen Developer-ID-Signatur und Apple-Notarisierung, die macOS beim Öffnen prüft.
+Die App prüft beim Start höchstens einmal täglich das neueste stabile GitHub-Release. Wenn eine neuere Version verfügbar ist, kann der Nutzer das DMG laden; vor dem Öffnen wird es gegen die mitveröffentlichte SHA-256-Datei geprüft. Diese Prüfsumme erkennt beschädigte oder unvollständige Downloads. Weil sie aus demselben Release stammt, belegt sie nicht die Herkunft.
 
 ## Dokumentation
 

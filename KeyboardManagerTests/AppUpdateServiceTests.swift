@@ -60,6 +60,45 @@ final class AppUpdateServiceTests: XCTestCase {
         XCTAssertEqual(result, .upToDate)
     }
 
+    func testAppleSiliconInstallerIsPreferred() async throws {
+        let fixture = """
+        {
+          "tag_name": "v1.2.0",
+          "html_url": "https://github.com/example/keyboard/releases/tag/v1.2.0",
+          "draft": false,
+          "prerelease": false,
+          "assets": [
+            {
+              "name": "Keyboard-Manager-1.2.0-universal.dmg",
+              "browser_download_url": "https://example.invalid/Keyboard-Manager-1.2.0-universal.dmg"
+            },
+            {
+              "name": "Keyboard-Manager-1.2.0-universal.dmg.sha256",
+              "browser_download_url": "https://example.invalid/Keyboard-Manager-1.2.0-universal.dmg.sha256"
+            },
+            {
+              "name": "Keyboard-Manager-1.2.0-arm64.dmg",
+              "browser_download_url": "https://example.invalid/Keyboard-Manager-1.2.0-arm64.dmg"
+            },
+            {
+              "name": "Keyboard-Manager-1.2.0-arm64.dmg.sha256",
+              "browser_download_url": "https://example.invalid/Keyboard-Manager-1.2.0-arm64.dmg.sha256"
+            }
+          ]
+        }
+        """.data(using: .utf8)!
+        let service = GitHubReleaseUpdateService(loadData: { _ in fixture })
+        let current = try XCTUnwrap(AppVersion(releaseTag: "1.1.2"))
+
+        let result = try await service.checkForUpdate(currentVersion: current)
+
+        guard case let .updateAvailable(update) = result else {
+            return XCTFail("Expected an update, got \(result)")
+        }
+        XCTAssertEqual(update.diskImageURL.lastPathComponent, "Keyboard-Manager-1.2.0-arm64.dmg")
+        XCTAssertEqual(update.checksumURL.lastPathComponent, "Keyboard-Manager-1.2.0-arm64.dmg.sha256")
+    }
+
     func testRepositoryWithoutReleaseCountsAsUpToDate() async throws {
         let service = GitHubReleaseUpdateService(loadData: { _ in
             throw AppUpdateError.noPublishedRelease
