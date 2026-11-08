@@ -14,6 +14,8 @@ struct CaptureView: View {
     @State private var externalPhotoDownloadTask: Task<Void, Never>?
     @State private var isDeleteConfirmationPresented = false
     @State private var photoImportError: String?
+    @State private var isPhotoDropTargeted = false
+    @State private var isLoadingDroppedPhotos = false
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
@@ -36,6 +38,14 @@ struct CaptureView: View {
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .overlay {
+                if isPhotoDropTargeted {
+                    photoDropOverlay
+                }
+            }
+            .onDrop(of: DroppedPhotoLoader.acceptedTypes, isTargeted: $isPhotoDropTargeted) { providers in
+                handlePhotoDrop(providers)
+            }
         }
         .task(id: store.editorIdentity) {
             loadDraft()
@@ -225,6 +235,8 @@ struct CaptureView: View {
         case .board:
             Section("Keyboard") {
                 LibraryTextField(title: "Format", text: $draft.format, values: store.libraryValues(for: "formats"))
+                LibraryTextField(title: "Farbe", text: $draft.color, values: store.libraryValues(for: "boardColors"))
+                LibraryTextField(title: "Gewicht", text: $draft.weightMaterial, values: store.weightMaterialSuggestions())
                 LibraryTextField(title: "Plate", text: $draft.plate, values: store.libraryValues(for: "plates"))
                 LibraryTextField(title: "PCB", text: $draft.pcb, values: store.libraryValues(for: "pcbs"))
                 LibraryTextField(title: "Stabilisatoren", text: $draft.stabilizers, values: store.libraryValues(for: "stabs"))
@@ -358,11 +370,20 @@ struct CaptureView: View {
                 .frame(height: 132)
             }
 
-            Button {
-                isPhotoImporterPresented = true
-            } label: {
-                Label("Fotos hinzufügen …", systemImage: "photo.badge.plus")
+            HStack {
+                Button {
+                    isPhotoImporterPresented = true
+                } label: {
+                    Label("Fotos hinzufügen …", systemImage: "photo.badge.plus")
+                }
+                if isLoadingDroppedPhotos {
+                    ProgressView()
+                        .controlSize(.small)
+                }
             }
+            Text("Oder Fotos aus Finder, Fotos oder dem Browser hierher ziehen.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             if !externalImageURLs.isEmpty {
                 Divider()
@@ -461,6 +482,8 @@ struct CaptureView: View {
         switch draft.kind {
         case .board:
             if !draft.format.isEmpty { Label(draft.format, systemImage: "rectangle.split.3x1") }
+            if !draft.color.isEmpty { Label(draft.color, systemImage: "paintpalette") }
+            if !draft.weightMaterial.isEmpty { Label("Gewicht: \(draft.weightMaterial)", systemImage: "scalemass") }
             if !draft.pcb.isEmpty { Label("PCB: \(draft.pcb)", systemImage: "cpu") }
             if !draft.plate.isEmpty { Label("Plate: \(draft.plate)", systemImage: "square.grid.3x3") }
         case .keycapSet:
@@ -726,21 +749,62 @@ struct CaptureView: View {
         switch result {
         case let .success(urls):
             Task {
-                do {
-                    let photos = try await store.preparePhotos(urls: urls, for: draft)
-                    registerStructuralUndo()
-                    preparedPhotos.append(contentsOf: photos)
-                    draft.photoIDs.append(contentsOf: photos.map(\.record.id))
-                    if draft.mainPhotoID == nil {
-                        draft.mainPhotoID = photos.first?.record.id
-                    }
-                } catch {
-                    photoImportError = error.localizedDescription
-                }
+                await addPhotos(from: urls)
             }
         case let .failure(error):
             photoImportError = error.localizedDescription
         }
+    }
+
+    /// Shared by the file dialog and drag and drop, so dropped photos get the
+    /// same checks, scaling and GPS removal as chosen ones.
+    private func addPhotos(from urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        do {
+            let photos = try await store.preparePhotos(urls: urls, for: draft)
+            registerStructuralUndo()
+            preparedPhotos.append(contentsOf: photos)
+            draft.photoIDs.append(contentsOf: photos.map(\.record.id))
+            if draft.mainPhotoID == nil {
+                draft.mainPhotoID = photos.first?.record.id
+            }
+        } catch {
+            photoImportError = error.localizedDescription
+        }
+    }
+
+    private func handlePhotoDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard !providers.isEmpty, !isLoadingDroppedPhotos else { return false }
+        isLoadingDroppedPhotos = true
+        let loader = DroppedPhotoLoader()
+        Task {
+            let result = await loader.load(providers)
+            await addPhotos(from: result.urls)
+            loader.removeTemporaryFiles()
+            isLoadingDroppedPhotos = false
+            if result.skippedCount > 0, photoImportError == nil {
+                photoImportError = L10n.text(
+                    "%lld abgelegte Elemente sind keine Bilder und wurden übersprungen.",
+                    arguments: result.skippedCount
+                )
+            }
+        }
+        return true
+    }
+
+    private var photoDropOverlay: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [10, 6]))
+            .background(Color.accentColor.opacity(0.08), in: .rect(cornerRadius: 12))
+            .overlay {
+                Label("Fotos hier ablegen", systemImage: "photo.badge.plus")
+                    .font(.title2.bold())
+                    .padding(14)
+                    .background(.regularMaterial, in: .capsule)
+            }
+            .padding(8)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private func downloadExternalPhotos() {
@@ -912,5 +976,106 @@ private struct LibraryTextField: View {
                 .help("Vorhandenen Wert auswählen; freie Eingabe bleibt möglich.")
             }
         }
+    }
+}
+
+/// Turns dropped items into local image files: Finder files are used where
+/// they are, image data from Photos or a browser is first copied into a
+/// private temporary folder that `removeTemporaryFiles()` deletes again.
+@MainActor
+final class DroppedPhotoLoader {
+    static let acceptedTypes: [UTType] = [.fileURL, .image]
+
+    struct Result: Sendable {
+        var urls: [URL]
+        var skippedCount: Int
+    }
+
+    let temporaryDirectory: URL
+
+    init(fileManager: FileManager = .default) {
+        temporaryDirectory = fileManager.temporaryDirectory
+            .appendingPathComponent("KeyboardManagerDrop-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    func load(_ providers: [NSItemProvider]) async -> Result {
+        var urls: [URL] = []
+        var skipped = 0
+        for provider in providers {
+            if let url = await localImageURL(from: provider) {
+                urls.append(url)
+            } else {
+                skipped += 1
+            }
+        }
+        return Result(urls: urls, skippedCount: skipped)
+    }
+
+    func removeTemporaryFiles() {
+        try? FileManager.default.removeItem(at: temporaryDirectory)
+    }
+
+    private func localImageURL(from provider: NSItemProvider) async -> URL? {
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier),
+           let url = await fileURL(from: provider) {
+            return Self.isImageFile(url) ? url : nil
+        }
+        guard let typeIdentifier = provider.registeredTypeIdentifiers.first(where: {
+            UTType($0)?.conforms(to: .image) == true
+        }) else {
+            return nil
+        }
+        return await copiedImageFile(from: provider, typeIdentifier: typeIdentifier)
+    }
+
+    private func fileURL(from provider: NSItemProvider) async -> URL? {
+        await withCheckedContinuation { continuation in
+            _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+                let url = data.flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
+                continuation.resume(returning: url?.isFileURL == true ? url : nil)
+            }
+        }
+    }
+
+    /// The system deletes the provided file when the callback returns, so it
+    /// is copied while still inside the callback.
+    private func copiedImageFile(from provider: NSItemProvider, typeIdentifier: String) async -> URL? {
+        let directory = temporaryDirectory
+        let fallbackName = provider.suggestedName ?? L10n.text("Abgelegtes Foto")
+        return await withCheckedContinuation { continuation in
+            _ = provider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { url, _ in
+                guard let url else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                do {
+                    let fileManager = FileManager.default
+                    try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+                    let ext = url.pathExtension.isEmpty
+                        ? (UTType(typeIdentifier)?.preferredFilenameExtension ?? "img")
+                        : url.pathExtension
+                    let baseName = url.deletingPathExtension().lastPathComponent
+                    let name = (baseName.isEmpty ? fallbackName : baseName) + "." + ext
+                    let target = directory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                        .appendingPathComponent(name)
+                    try fileManager.createDirectory(
+                        at: target.deletingLastPathComponent(),
+                        withIntermediateDirectories: true
+                    )
+                    try fileManager.copyItem(at: url, to: target)
+                    continuation.resume(returning: target)
+                } catch {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+
+    nonisolated static func isImageFile(_ url: URL) -> Bool {
+        if let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType {
+            return type.conforms(to: .image)
+        }
+        return UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
     }
 }

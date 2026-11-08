@@ -71,6 +71,32 @@ struct InventoryEditingService: Sendable {
         return InventoryEditingResult(snapshot: snapshot, removedPhotos: removedPhotos)
     }
 
+    /// Removes the preserved V1 import warnings of a switch set. The removal
+    /// is logged in the item's notes, so nothing disappears silently.
+    func clearingImportWarnings(
+        switchSetID: String,
+        in source: InventorySnapshot,
+        now: Date = .now
+    ) throws -> InventorySnapshot {
+        guard let index = source.switchSets.firstIndex(where: { $0.id == switchSetID }) else {
+            throw InventoryEditingError.missingItem
+        }
+        let warnings = source.switchSets[index].importWarnings
+        guard !warnings.isEmpty else { return source }
+
+        let date = now.formatted(.iso8601.year().month().day())
+        let log = ([L10n.text("Importhinweise am %@ entfernt:", arguments: date)]
+            + warnings.map { "- \($0)" })
+            .joined(separator: "\n")
+        var snapshot = source
+        let notes = snapshot.switchSets[index].notes
+        snapshot.switchSets[index].notes = notes.isEmpty ? log : notes + "\n\n" + log
+        snapshot.switchSets[index].importWarnings = []
+        snapshot.switchSets[index].updatedAt = now
+        snapshot.metadata.updatedAt = now
+        return snapshot
+    }
+
     func deleting(
         kind: InventoryItemKind,
         id: String,
@@ -239,6 +265,8 @@ struct InventoryEditingService: Sendable {
             name: draft.normalizedName,
             manufacturer: draft.manufacturer.trimmed,
             format: draft.format.trimmed,
+            color: draft.color.trimmed,
+            weightMaterial: draft.weightMaterial.trimmed,
             plate: draft.plate.trimmed,
             pcb: draft.pcb.trimmed,
             stabilizers: draft.stabilizers.trimmed,
@@ -392,6 +420,8 @@ struct InventoryEditingService: Sendable {
             values = [
                 ("manufacturers", draft.manufacturer),
                 ("formats", draft.format),
+                ("boardColors", draft.color),
+                ("boardWeightMaterials", draft.weightMaterial),
                 ("plates", draft.plate),
                 ("pcbs", draft.pcb),
                 ("stabs", draft.stabilizers)

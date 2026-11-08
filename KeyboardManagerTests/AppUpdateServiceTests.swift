@@ -60,6 +60,31 @@ final class AppUpdateServiceTests: XCTestCase {
         XCTAssertEqual(result, .upToDate)
     }
 
+    func testRepositoryWithoutReleaseCountsAsUpToDate() async throws {
+        let service = GitHubReleaseUpdateService(loadData: { _ in
+            throw AppUpdateError.noPublishedRelease
+        })
+        let current = try XCTUnwrap(AppVersion(releaseTag: "1.0.0"))
+
+        let result = try await service.checkForUpdate(currentVersion: current)
+
+        XCTAssertEqual(result, .upToDate)
+    }
+
+    func testOtherUpdateFailuresAreStillReported() async throws {
+        let service = GitHubReleaseUpdateService(loadData: { _ in
+            throw AppUpdateError.unexpectedResponse
+        })
+        let current = try XCTUnwrap(AppVersion(releaseTag: "1.0.0"))
+
+        do {
+            _ = try await service.checkForUpdate(currentVersion: current)
+            XCTFail("Expected the failure to be reported")
+        } catch {
+            XCTAssertEqual(error as? AppUpdateError, .unexpectedResponse)
+        }
+    }
+
     func testChecksumParserAndHashRejectTampering() throws {
         let data = Data("abc".utf8)
         XCTAssertEqual(
@@ -75,5 +100,67 @@ final class AppUpdateServiceTests: XCTestCase {
         XCTAssertThrowsError(
             try GitHubReleaseUpdateService.checksum(from: Data("not-a-checksum".utf8))
         )
+    }
+    @MainActor
+    func testAutomaticUpdateCheckRunsAtMostOncePerDay() async throws {
+        let suiteName = "KeyboardManagerUpdateTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = CountingUpdateService()
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let controller = AppUpdateController(service: service, defaults: defaults)
+        await controller.checkForUpdatesIfDue(now: start)
+        await controller.checkForUpdatesIfDue(now: start + 3_600)
+        var calls = await service.calls
+        XCTAssertEqual(calls, 1)
+
+        // A new launch reads the stored date; a manual check always runs.
+        let relaunched = AppUpdateController(service: service, defaults: defaults)
+        XCTAssertEqual(relaunched.lastCheckDate, start)
+        await relaunched.checkForUpdatesIfDue(now: start + 7_200)
+        await relaunched.checkForUpdates(now: start + 7_300)
+        calls = await service.calls
+        XCTAssertEqual(calls, 2)
+
+        await relaunched.checkForUpdatesIfDue(now: start + 7_300 + 24 * 60 * 60)
+        calls = await service.calls
+        XCTAssertEqual(calls, 3)
+    }
+
+    @MainActor
+    func testFailedAutomaticUpdateCheckIsRetriedNextLaunch() async throws {
+        let suiteName = "KeyboardManagerUpdateTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = CountingUpdateService(fails: true)
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let controller = AppUpdateController(service: service, defaults: defaults)
+        await controller.checkForUpdatesIfDue(now: start)
+        await controller.checkForUpdatesIfDue(now: start + 60)
+
+        let calls = await service.calls
+        XCTAssertEqual(calls, 2)
+        XCTAssertNil(controller.lastCheckDate)
+    }
+}
+
+private actor CountingUpdateService: AppUpdateChecking {
+    private(set) var calls = 0
+    private let fails: Bool
+
+    init(fails: Bool = false) {
+        self.fails = fails
+    }
+
+    func checkForUpdate(currentVersion: AppVersion) async throws -> AppUpdateCheckResult {
+        calls += 1
+        if fails { throw AppUpdateError.unexpectedResponse }
+        return .upToDate
+    }
+
+    func downloadAndVerify(_ update: AppUpdate) async throws -> URL {
+        throw AppUpdateError.unexpectedResponse
     }
 }

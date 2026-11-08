@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -7,6 +8,9 @@ struct KeyboardManagerApp: App {
     @AppStorage(AppLanguage.preferenceKey) private var preferredLanguage = AppLanguage.german.rawValue
     @AppStorage("followSystemAppearance") private var followSystemAppearance = true
     private let shouldAdoptStoredLanguage: Bool
+    /// View settings (`@AppStorage`). UI tests get a fresh, separate area so
+    /// they neither depend on nor change the user's own settings.
+    private let viewDefaults: UserDefaults
 
     init() {
         shouldAdoptStoredLanguage = UserDefaults.standard.object(
@@ -14,6 +18,10 @@ struct KeyboardManagerApp: App {
         ) == nil
         let environment = ProcessInfo.processInfo.environment
         if let testRoot = environment["KEYBOARD_MANAGER_UI_TEST_ROOT"], !testRoot.isEmpty {
+            let suiteName = "de.r3d42.KeyboardManagerV2.uitests"
+            let testDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+            testDefaults.removePersistentDomain(forName: suiteName)
+            viewDefaults = testDefaults
             let rootURL = URL(fileURLWithPath: testRoot, isDirectory: true)
             let databaseURL = rootURL
                 .appendingPathComponent("inventory.sqlite")
@@ -43,11 +51,27 @@ struct KeyboardManagerApp: App {
                             )
                         ),
                         v1ProcessDetector: processDetector
-                    )
+                    ),
+                    automaticBackupService: AutomaticBackupService(
+                        directoryURL: rootURL.appendingPathComponent(
+                            "AutomaticBackups",
+                            isDirectory: true
+                        )
+                    ),
+                    automaticBackupsEnabled: {
+                        testDefaults.object(
+                            forKey: InventoryStore.automaticBackupsPreferenceKey
+                        ) as? Bool ?? true
+                    }
                 )
             )
         } else {
-            _store = State(initialValue: InventoryStore())
+            viewDefaults = .standard
+            _store = State(
+                initialValue: InventoryStore(
+                    automaticBackupService: AutomaticBackupService()
+                )
+            )
         }
     }
 
@@ -64,6 +88,7 @@ struct KeyboardManagerApp: App {
             )
                 .frame(minWidth: 980, minHeight: 640)
                 .preferredColorScheme(followSystemAppearance ? nil : .light)
+                .defaultAppStorage(viewDefaults)
                 .environment(
                     \.locale,
                     AppLanguage.normalized(preferredLanguage).locale
@@ -72,6 +97,12 @@ struct KeyboardManagerApp: App {
         .defaultSize(width: 1600, height: 900)
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("Über Keyboard Manager") {
+                    AboutPanel.show()
+                }
+            }
+
             CommandMenu("Sammlung") {
                 Button("Neues Board") {
                     store.prepareNewItem(.board)
@@ -102,10 +133,35 @@ struct KeyboardManagerApp: App {
                 preferredLanguage: $preferredLanguage
             )
             .preferredColorScheme(followSystemAppearance ? nil : .light)
+            .defaultAppStorage(viewDefaults)
             .environment(
                 \.locale,
                 AppLanguage.normalized(preferredLanguage).locale
             )
         }
+    }
+}
+
+/// The standard macOS About panel with license, source and data location.
+@MainActor
+enum AboutPanel {
+    static func show() {
+        let dataPath = MigrationStorageLayout.default.rootURL.path
+            .replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        let text = [
+            L10n.text("Mechanische Tastatur-Sammlungen lokal erfassen, verwalten und sichern."),
+            L10n.text("Lizenz: GNU GPL Version 3 oder später."),
+            L10n.text("Quellcode: %@", arguments: "https://github.com/\(GitHubReleaseUpdateService.repository)"),
+            L10n.text("Daten: %@", arguments: dataPath)
+        ].joined(separator: "\n")
+        let credits = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        )
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [.credits: credits])
+        NSApplication.shared.activate()
     }
 }

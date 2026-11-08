@@ -43,6 +43,23 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A manual run must build the requested tag, not the branch it was
+          # started from; otherwise the release would ship unrelated code.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          persist-credentials: false
+
+      - name: Check tag matches app version
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          # The app compares the release tag with its own version. A mismatch
+          # would offer the same update on every launch.
+          VERSIONS="$(grep -E '^[[:space:]]*MARKETING_VERSION = ' KeyboardManager.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);/\1/' | sort -u)"
+          if [[ "$VERSIONS" != "${TAG#v}" ]]; then
+            echo "::error::Tag $TAG does not match MARKETING_VERSION ($VERSIONS)."
+            exit 1
+          fi
 
       - name: Import Developer ID certificate
         env:
@@ -89,4 +106,5 @@ jobs:
           SHA="$(find dist/release -maxdepth 1 -name '*.dmg.sha256' -print -quit)"
           test -n "$DMG"
           test -n "$SHA"
+          test "$(basename "$DMG")" = "Keyboard-Manager-${TAG#v}-universal.dmg"
           gh release create "$TAG" "$DMG" "$SHA" --verify-tag --generate-notes --title "Keyboard Manager $TAG"

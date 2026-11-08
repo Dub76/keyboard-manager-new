@@ -26,6 +26,8 @@ final class InventoryStore {
     var migrationCommitState: MigrationCommitState = .idle
     var backupExportState: BackupExportState = .idle
     var reportExportState: InventoryReportExportState = .idle
+    private(set) var automaticBackupState: AutomaticBackupState = .idle
+    private(set) var latestAutomaticBackup: AutomaticBackupEntry?
     private(set) var languagePersistenceError: String?
     private(set) var migrationReportURL: URL?
     private(set) var pendingMigrationSnapshot: InventorySnapshot?
@@ -40,9 +42,25 @@ final class InventoryStore {
     private let editingService = InventoryEditingService()
     private let photoService: PhotoImportService
     private let thumbnailService: ThumbnailService
+    private let automaticBackupService: AutomaticBackupService?
+    private let automaticBackupsEnabled: @MainActor @Sendable () -> Bool
     private var pendingEditorNavigation: EditorNavigationTarget?
     private var pendingOverviewReturn: OverviewReturnContext?
     private var overviewRestoreRevision = 0
+    private var writeChain: Task<Void, Never>?
+
+    static let automaticBackupsPreferenceKey = "automaticBackupsEnabled"
+
+    /// Reads the Settings toggle; automatic backups are on unless turned off.
+    static func automaticBackupsPreference() -> Bool {
+        UserDefaults.standard.object(forKey: automaticBackupsPreferenceKey) as? Bool ?? true
+    }
+
+    static var inventoryNotLoadedMessage: String {
+        L10n.text(
+            "Der Bestand wurde nicht geladen. Änderungen sind gesperrt, damit keine gespeicherten Daten überschrieben werden."
+        )
+    }
 
     init(
         repository: any InventoryRepository = SQLiteInventoryRepository(),
@@ -51,7 +69,13 @@ final class InventoryStore {
         backupExportService: BackupExportService = BackupExportService(),
         reportExportService: InventoryReportExportService = InventoryReportExportService(),
         photoService: PhotoImportService = PhotoImportService(),
-        thumbnailService: ThumbnailService = ThumbnailService()
+        thumbnailService: ThumbnailService = ThumbnailService(),
+        // Off unless the app passes a service, so tests and previews never
+        // write into or prune the real backup folder.
+        automaticBackupService: AutomaticBackupService? = nil,
+        automaticBackupsEnabled: @escaping @MainActor @Sendable () -> Bool = {
+            InventoryStore.automaticBackupsPreference()
+        }
     ) {
         self.repository = repository
         self.migrationService = migrationService
@@ -60,6 +84,8 @@ final class InventoryStore {
         self.reportExportService = reportExportService
         self.photoService = photoService
         self.thumbnailService = thumbnailService
+        self.automaticBackupService = automaticBackupService
+        self.automaticBackupsEnabled = automaticBackupsEnabled
     }
 
     func load() async {
@@ -69,12 +95,32 @@ final class InventoryStore {
         do {
             snapshot = try await repository.loadSnapshot()
             loadState = .loaded
+            scheduleAutomaticBackup()
         } catch {
             loadState = .failed(error.localizedDescription)
         }
     }
 
+    /// Allows a new load attempt after a failure, for example once the user
+    /// has closed another process that held the database.
+    func retryLoad() async {
+        guard case .failed = loadState else { return }
+        loadState = .idle
+        await load()
+    }
+
+    /// Only a successfully loaded snapshot may be the base of a write.
+    /// Writing on top of the `.empty` placeholder would replace the stored
+    /// collection with just the edited item.
+    var canWriteInventory: Bool {
+        loadState == .loaded
+    }
+
     func updatePreferredLanguage(_ value: String) async {
+        await serializedWrite { await self.performUpdatePreferredLanguage(value) }
+    }
+
+    private func performUpdatePreferredLanguage(_ value: String) async {
         let normalized = AppLanguage.normalized(value).rawValue
         guard loadState == .loaded else { return }
         guard snapshot.metadata.preferredLanguage != normalized else {
@@ -257,6 +303,17 @@ final class InventoryStore {
 
     func save(_ draft: InventoryDraft, preparedPhotos: [PreparedPhoto]) async -> Bool {
         editorSaveState = .saving
+        return await serializedWrite {
+            await self.performSave(draft, preparedPhotos: preparedPhotos)
+        }
+    }
+
+    private func performSave(_ draft: InventoryDraft, preparedPhotos: [PreparedPhoto]) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        editorSaveState = .saving
         var draft = draft
         for photo in preparedPhotos where !draft.photoIDs.contains(photo.record.id) {
             draft.photoIDs.append(photo.record.id)
@@ -285,6 +342,7 @@ final class InventoryStore {
             selectedItemID = draft.id
             isEditorDirty = false
             editorSaveState = .saved("„\(draft.normalizedName)“ wurde gespeichert.")
+            scheduleAutomaticBackup()
             scheduleOverviewRestore(kind: draft.kind, itemID: draft.id)
             route = .overview
             return true
@@ -297,6 +355,17 @@ final class InventoryStore {
     func deleteItem(kind: InventoryItemKind, id: String) async -> Bool {
         editorSaveState = .saving
         let wasEditing = route == .capture
+        return await serializedWrite {
+            await self.performDeleteItem(kind: kind, id: id, wasEditing: wasEditing)
+        }
+    }
+
+    private func performDeleteItem(kind: InventoryItemKind, id: String, wasEditing: Bool) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        editorSaveState = .saving
         do {
             let result = try editingService.deleting(kind: kind, id: id, in: snapshot)
             try await repository.saveSnapshot(result.snapshot)
@@ -308,10 +377,38 @@ final class InventoryStore {
             }
             isEditorDirty = false
             editorSaveState = .saved("Der Eintrag wurde gelöscht.")
+            scheduleAutomaticBackup()
             if wasEditing {
                 scheduleOverviewRestore(kind: kind, itemID: nil)
             }
             route = .overview
+            return true
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    func importWarnings(forSwitchSetID id: String) -> [String] {
+        snapshot.switchSets.first { $0.id == id }?.importWarnings ?? []
+    }
+
+    func clearImportWarnings(switchSetID id: String) async -> Bool {
+        await serializedWrite { await self.performClearImportWarnings(switchSetID: id) }
+    }
+
+    private func performClearImportWarnings(switchSetID id: String) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        do {
+            let updated = try editingService.clearingImportWarnings(switchSetID: id, in: snapshot)
+            guard updated != snapshot else { return true }
+            try await repository.saveSnapshot(updated)
+            snapshot = updated
+            editorSaveState = .saved(L10n.text("Die Importhinweise wurden entfernt und in den Notizen festgehalten."))
+            scheduleAutomaticBackup()
             return true
         } catch {
             editorSaveState = .failed(error.localizedDescription)
@@ -398,6 +495,23 @@ final class InventoryStore {
 
     func libraryValues(for key: String) -> [String] {
         snapshot.libraryValues.valuesByKey[key, default: []]
+    }
+
+    /// Common weight materials are offered from the start; materials the
+    /// user entered come first and are not repeated.
+    func weightMaterialSuggestions() -> [String] {
+        let defaults = [
+            L10n.text("Aluminium"),
+            L10n.text("Edelstahl"),
+            L10n.text("Kupfer"),
+            L10n.text("Messing"),
+            L10n.text("Stahl"),
+            L10n.text("Titan")
+        ]
+        var seen = Set<String>()
+        return (libraryValues(for: "boardWeightMaterials") + defaults).filter {
+            seen.insert($0.lowercased()).inserted
+        }
     }
 
     private var needsDiscardConfirmation: Bool {
@@ -539,10 +653,22 @@ final class InventoryStore {
     }
 
     var hasExistingV2Data: Bool {
-        snapshot.counts.totalItems > 0 || snapshot.counts.photos > 0
+        // Without a loaded snapshot the stored state is unknown, so the UI
+        // must assume data exists and warn before replacing it.
+        guard loadState == .loaded else { return true }
+        return snapshot.counts.totalItems > 0 || snapshot.counts.photos > 0
     }
 
     var canCommitMigration: Bool {
+        // A failed load may still be replaced by a migration, because the
+        // commit moves the unreadable data into a backup first. While the
+        // initial load is pending the outcome is unknown, so wait for it.
+        switch loadState {
+        case .idle, .loading:
+            return false
+        case .loaded, .failed:
+            break
+        }
         guard case let .ready(report) = migrationInspectionState,
               report.canImport,
               pendingMigrationResult != nil,
@@ -555,6 +681,10 @@ final class InventoryStore {
     }
 
     func commitPendingMigration() async {
+        await serializedWrite { await self.performCommitPendingMigration() }
+    }
+
+    private func performCommitPendingMigration() async {
         guard let sourceURL = pendingMigrationSourceURL,
               let dryRun = pendingMigrationResult,
               canCommitMigration else {
@@ -578,6 +708,7 @@ final class InventoryStore {
             loadState = .loaded
             migrationReportURL = result.reportURL
             migrationCommitState = .succeeded(result.report)
+            scheduleAutomaticBackup()
             migrationReadiness = .ready(sourceCount: 1)
         } catch {
             migrationCommitState = .failed(error.localizedDescription)
@@ -590,6 +721,89 @@ final class InventoryStore {
                 )
             }
         }
+    }
+
+    // MARK: Automatic backups
+
+    var automaticBackupsDirectoryURL: URL? {
+        automaticBackupService?.directoryURL
+    }
+
+    /// Creates a backup right away, regardless of the daily interval.
+    func backUpNow() async {
+        await serializedWrite { await self.performAutomaticBackup(force: true) }
+    }
+
+    func refreshAutomaticBackupStatus() async {
+        guard let automaticBackupService else { return }
+        latestAutomaticBackup = await automaticBackupService.entries().first
+    }
+
+    /// Waits until every queued write, including scheduled backups, is done.
+    func waitForPendingWrites() async {
+        await writeChain?.value
+    }
+
+    /// Queues a backup check behind the current write. It runs in the same
+    /// queue so no save can remove a photo while the archive is being built.
+    private func scheduleAutomaticBackup() {
+        guard automaticBackupService != nil, automaticBackupsEnabled() else { return }
+        enqueueWrite { await self.performAutomaticBackup(force: false) }
+    }
+
+    private func performAutomaticBackup(force: Bool) async {
+        guard let automaticBackupService, canWriteInventory else { return }
+        automaticBackupState = .running
+        do {
+            let outcome = try await automaticBackupService.backUpIfDue(
+                snapshot: snapshot,
+                appVersion: appVersion,
+                force: force
+            )
+            switch outcome {
+            case let .created(entry):
+                latestAutomaticBackup = entry
+                automaticBackupState = .created(entry.createdAt)
+            case let .skippedUnchanged(entry), let .skippedRecent(entry):
+                latestAutomaticBackup = entry
+                automaticBackupState = .idle
+            case .skippedEmpty:
+                automaticBackupState = force ? .nothingToBackUp : .idle
+            }
+        } catch {
+            automaticBackupState = .failed(error.localizedDescription)
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
+    }
+
+    /// Runs inventory writes strictly one after another. Every write builds a
+    /// complete new snapshot from `snapshot` and then suspends for photo and
+    /// database work; without this queue a second write could start from the
+    /// same base and the one finishing last would silently drop the other.
+    private func serializedWrite<T: Sendable>(
+        _ operation: @escaping @MainActor @Sendable () async -> T
+    ) async -> T {
+        await enqueueWrite(operation).value
+    }
+
+    /// Appends a write to the queue synchronously, so the order of calls is
+    /// the order of execution.
+    @discardableResult
+    private func enqueueWrite<T: Sendable>(
+        _ operation: @escaping @MainActor @Sendable () async -> T
+    ) -> Task<T, Never> {
+        let previous = writeChain
+        let task = Task { @MainActor in
+            await previous?.value
+            return await operation()
+        }
+        writeChain = Task { @MainActor in
+            _ = await task.value
+        }
+        return task
     }
 
     private func discoveredSource(matching url: URL) -> V1DiscoveredSource? {
@@ -624,6 +838,14 @@ enum EditorSaveState: Equatable, Sendable {
     case idle
     case saving
     case saved(String)
+    case failed(String)
+}
+
+enum AutomaticBackupState: Equatable, Sendable {
+    case idle
+    case running
+    case created(Date)
+    case nothingToBackUp
     case failed(String)
 }
 

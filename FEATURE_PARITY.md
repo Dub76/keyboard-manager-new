@@ -20,7 +20,7 @@ Statusdefinitionen:
 | Hauptaktion „Neues Board“ | öffnet neuen Board-Entwurf | Phase 2 implementiert | Toolbar und `⌘N`, Fokus im Namensfeld |
 | Deutsch / Englisch | Laufzeit-Übersetzung und Persistenz | Restparität implementiert + Tests | vollständiger String Catalog, Live-Umschaltung, SQLite-/V1-Metadatenübernahme und sprachkonsistente Berichte |
 | Hell / Dunkel | eigener Theme-Schalter | Nicht übernehmen | Systemdarstellung plus optionale Systemeinstellung; kein Web-CSS-Theme |
-| Version / Speicherstatus | Sidebar-/Kopfzeilenanzeige | Phase 2 teilweise | klarer Speicher-/Fehlerstatus; About-Ausbau später |
+| Version / Speicherstatus | Sidebar-/Kopfzeilenanzeige | Implementiert | Sidebar zeigt Version, Speicherzeitpunkt sowie Lade-, Speicher- und Backupfehler; „Über Keyboard Manager“ mit Lizenz, Quellcode und Datenort |
 | Ungespeicherte Änderungen | Bestätigungsdialog beim Wechsel/Schließen | Phase 5 vollständig + UI-Test | sichtbarer Editor-Button „Verwerfen“, Navigation/Typwechsel und roter Fensterschalter schützen den Entwurf; Abbrechen und bestätigtes Verwerfen sind geprüft |
 | Kontextmenü | Undo/Redo/Cut/Copy/Paste/Select All | Restparität implementiert + UI-Abnahme | app-weites Responder-Kontextmenü, native Textfeldmenüs und spezialisierte Tabellen-/Galerieaktionen einschließlich „Name kopieren“ |
 | App-Icon | eigenes V1-Programmicon | Restparität implementiert + Buildprüfung | eigener macOS-Assetkatalog von 16 bis 1024 Pixel; Xcode erzeugt und installiert `AppIcon.icns` |
@@ -78,7 +78,7 @@ Statusdefinitionen:
 | Board-Installationen | mehrere Boards, Menge je Board | Phase 2 implementiert | kanonische n:m-Relation |
 | Verfügbar | Gesamt minus verbaut | Phase 2 implementiert + Test | nie negativ, konsistent nach jeder Änderung |
 | Import-Provenienz | Quelltext, Zeile, Schlüssel, Zuordnungen, Warnungen | Modell | im Migrationsbericht und Detail sichtbar |
-| Importwarnungen löschen | Aktion im Spotlight | Offen | explizite, protokollierte Bereinigung |
+| Importwarnungen löschen | Aktion im Spotlight | Implementiert + Test | „Hinweise entfernen …“ im Spotlight mit Bestätigung; Wortlaut und Datum werden in den Notizen protokolliert |
 | Fotos / Hauptfoto | lokale Bilder | Phase 2 implementiert | Foto-Service |
 | Übersicht / Spotlight | Filter, Tabelle und Detail | Restparität implementiert + Tests | Suche, lokale Fotovorschau mit Leerzustand, Typ/Kraft/Pins, Bestand/Verbaut/Verfügbar, Boards samt Menge, Mengensortierung und Aktionen |
 | Galerie | in V1 nicht vorhanden | — | Produktentscheidung in späterer Phase |
@@ -127,7 +127,7 @@ Statusdefinitionen:
 
 | V1-Funktion | V1-Verhalten | V2-Status | Zielphase / Abnahmekriterium |
 | --- | --- | --- | --- |
-| Updateprüfung | GitHub latest release, 24-h Cache | Offen | erst nach eigener V2-Veröffentlichungsstrategie |
+| Updateprüfung | GitHub latest release, 24-h Cache | Implementiert + Test | automatische Prüfung höchstens einmal täglich, manuelle Prüfung jederzeit; Fehlschläge zählen nicht |
 | Download | nur vertrauenswürdige GitHub-Release-URL | Inventarisiert | Allowlist bleibt verpflichtend |
 | Externe Links | ausschließlich HTTPS | Phase 3 implementiert | `NSWorkspace` ausschließlich nach erneuter URL-Validierung |
 | Sender-/Navigation-Härtung | Electron IPC- und Navigation-Schutz | Nicht übernehmen | native App besitzt keine Renderer-/IPC-Angriffsfläche |

@@ -13,6 +13,8 @@ struct InventoryItemSummary: Identifiable, Hashable, Sendable {
     var primaryDetail: String
     var secondaryDetail: String
     var format: String
+    var color = ""
+    var weightMaterial = ""
     var profile: String
     var status: String
     var switchType: String
@@ -59,6 +61,7 @@ struct InventoryFilters: Equatable, Sendable {
     var searchText = ""
     var manufacturer = ""
     var format = ""
+    var color = ""
     var profile = ""
     var status = ""
     var switchType = ""
@@ -69,7 +72,7 @@ struct InventoryFilters: Equatable, Sendable {
         guard searchText.isEmpty else { return false }
         switch kind {
         case .board:
-            return manufacturer.isEmpty && format.isEmpty
+            return manufacturer.isEmpty && format.isEmpty && color.isEmpty
         case .keycapSet, .artisanSet:
             return manufacturer.isEmpty && profile.isEmpty && status.isEmpty
         case .switchSet:
@@ -153,6 +156,8 @@ enum InventoryQuery {
                     primaryDetail: board.format,
                     secondaryDetail: [board.pcb, board.plate].filter { !$0.isEmpty }.joined(separator: " · "),
                     format: board.format,
+                    color: board.color,
+                    weightMaterial: board.weightMaterial,
                     profile: "",
                     status: "",
                     switchType: "",
@@ -172,6 +177,8 @@ enum InventoryQuery {
                     metadata: [
                         .init(label: L10n.text("Hersteller"), value: board.manufacturer),
                         .init(label: L10n.text("Format"), value: board.format),
+                        .init(label: L10n.text("Farbe"), value: board.color),
+                        .init(label: L10n.text("Gewicht"), value: board.weightMaterial),
                         .init(label: "PCB", value: board.pcb),
                         .init(label: "Plate", value: board.plate),
                         .init(label: L10n.text("Stabilisatoren"), value: board.stabilizers),
@@ -347,6 +354,7 @@ enum InventoryQuery {
                 matchesSearch(item, searchText: filters.searchText)
                     && matchesExact(item.manufacturer, filters.manufacturer)
                     && matchesExact(item.format, filters.format)
+                    && matchesExact(item.color, filters.color)
                     && matchesExact(item.profile, filters.profile)
                     && matchesExact(item.status, filters.status)
                     && matchesExact(item.switchType, filters.switchType)

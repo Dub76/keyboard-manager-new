@@ -153,8 +153,11 @@ actor SQLiteInventoryRepository: InventoryRepository {
                 throw SQLiteInventoryRepositoryError.execute(errorMessage(database))
             }
 
-            try execute("COMMIT;", in: database)
+            // Check inside the transaction: once COMMIT has run, ROLLBACK can no
+            // longer undo the write, and reporting a failure then would make
+            // callers clean up files the stored snapshot already references.
             try verifyIntegrity(of: database)
+            try execute("COMMIT;", in: database)
         } catch {
             try? execute("ROLLBACK;", in: database)
             throw error

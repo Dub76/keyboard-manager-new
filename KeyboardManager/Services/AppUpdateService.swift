@@ -61,6 +61,7 @@ protocol AppUpdateChecking: Sendable {
 enum AppUpdateError: LocalizedError, Equatable {
     case invalidCurrentVersion
     case unexpectedResponse
+    case noPublishedRelease
     case noInstallableDiskImage
     case missingChecksum
     case invalidChecksum
@@ -72,6 +73,8 @@ enum AppUpdateError: LocalizedError, Equatable {
             "Die installierte App-Version konnte nicht gelesen werden."
         case .unexpectedResponse:
             "Der Update-Server hat keine gültige Antwort geliefert."
+        case .noPublishedRelease:
+            "Für dieses Repository wurde noch kein Release veröffentlicht."
         case .noInstallableDiskImage:
             "Für dieses Update wurde kein macOS-Installer gefunden."
         case .missingChecksum:
@@ -85,7 +88,7 @@ enum AppUpdateError: LocalizedError, Equatable {
 }
 
 struct GitHubReleaseUpdateService: AppUpdateChecking {
-    static let repository = "r3d42-git/keyboard-manager-new"
+    static let repository = "Dub76/keyboard-manager-new"
 
     private let repository: String
     private let loadData: @Sendable (URL) async throws -> Data
@@ -102,10 +105,14 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
         let releaseURL = URL(
             string: "https://api.github.com/repos/\(repository)/releases/latest"
         )!
-        let release = try JSONDecoder().decode(
-            GitHubRelease.self,
-            from: try await loadData(releaseURL)
-        )
+        let releaseData: Data
+        do {
+            releaseData = try await loadData(releaseURL)
+        } catch AppUpdateError.noPublishedRelease {
+            // A repository without any release has nothing newer to offer.
+            return .upToDate
+        }
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: releaseData)
 
         guard !release.draft, !release.prerelease,
               let version = AppVersion(releaseTag: release.tagName) else {
@@ -142,14 +149,14 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
         let (temporaryURL, response) = try await URLSession.shared.download(
             from: update.diskImageURL
         )
+        // Remove the download on every path, including a rejected response.
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
         guard let response = response as? HTTPURLResponse,
               (200..<300).contains(response.statusCode) else {
             throw AppUpdateError.unexpectedResponse
         }
-        defer { try? FileManager.default.removeItem(at: temporaryURL) }
 
-        let diskImageData = try Data(contentsOf: temporaryURL)
-        guard Self.sha256Hex(of: diskImageData) == expectedChecksum else {
+        guard try Self.sha256Hex(ofFileAt: temporaryURL) == expectedChecksum else {
             throw AppUpdateError.checksumMismatch
         }
 
@@ -166,6 +173,17 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
 
     static func sha256Hex(of data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Hashes a file in chunks so a large installer is never held in memory.
+    static func sha256Hex(ofFileAt url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let chunk = try handle.read(upToCount: 1_024 * 1_024), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     static func checksum(from data: Data) throws -> String {
@@ -190,8 +208,13 @@ struct GitHubReleaseUpdateService: AppUpdateChecking {
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("KeyboardManager/1", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let response = response as? HTTPURLResponse,
-              (200..<300).contains(response.statusCode) else {
+        guard let response = response as? HTTPURLResponse else {
+            throw AppUpdateError.unexpectedResponse
+        }
+        if response.statusCode == 404 {
+            throw AppUpdateError.noPublishedRelease
+        }
+        guard (200..<300).contains(response.statusCode) else {
             throw AppUpdateError.unexpectedResponse
         }
         return data
@@ -255,16 +278,24 @@ final class AppUpdateController {
         case failed(String)
     }
 
+    static let lastCheckKey = "keyboardManager.updates.lastCheck"
+    static let automaticCheckInterval: TimeInterval = 24 * 60 * 60
+
     private let service: any AppUpdateChecking
     private let currentVersion: AppVersion
+    private let defaults: UserDefaults
     var state: State = .idle
     var availableUpdate: AppUpdate?
+    private(set) var lastCheckDate: Date?
 
     init(
         service: any AppUpdateChecking = GitHubReleaseUpdateService(),
-        bundle: Bundle = .main
+        bundle: Bundle = .main,
+        defaults: UserDefaults = .standard
     ) {
         self.service = service
+        self.defaults = defaults
+        lastCheckDate = defaults.object(forKey: Self.lastCheckKey) as? Date
         currentVersion = AppVersion(
             bundleVersion: bundle.object(
                 forInfoDictionaryKey: "CFBundleShortVersionString"
@@ -283,11 +314,24 @@ final class AppUpdateController {
         }
     }
 
-    func checkForUpdates() async {
+    /// The launch-time check: asks GitHub at most once a day, like V1 did.
+    /// A failed check is not counted, so the next launch tries again.
+    func checkForUpdatesIfDue(now: Date = .now) async {
+        if let lastCheckDate {
+            let age = now.timeIntervalSince(lastCheckDate)
+            if age >= 0, age < Self.automaticCheckInterval { return }
+        }
+        await checkForUpdates(now: now)
+    }
+
+    func checkForUpdates(now: Date = .now) async {
         guard !isWorking else { return }
         state = .checking
         do {
-            switch try await service.checkForUpdate(currentVersion: currentVersion) {
+            let result = try await service.checkForUpdate(currentVersion: currentVersion)
+            lastCheckDate = now
+            defaults.set(now, forKey: Self.lastCheckKey)
+            switch result {
             case .upToDate:
                 availableUpdate = nil
                 state = .upToDate

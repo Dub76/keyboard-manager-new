@@ -17,6 +17,8 @@ struct InventoryDraft: Hashable, Sendable {
     var listEntries: [String] = []
 
     var format = ""
+    var color = ""
+    var weightMaterial = ""
     var plate = ""
     var pcb = ""
     var stabilizers = ""
@@ -65,6 +67,8 @@ struct InventoryDraft: Hashable, Sendable {
         name = board.name
         manufacturer = board.manufacturer
         format = board.format
+        color = board.color
+        weightMaterial = board.weightMaterial
         plate = board.plate
         pcb = board.pcb
         stabilizers = board.stabilizers

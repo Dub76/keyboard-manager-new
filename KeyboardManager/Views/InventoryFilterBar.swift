@@ -51,6 +51,12 @@ struct InventoryFilterBar: View {
                 selection: $filters.format,
                 values: InventoryQuery.values(\.format, in: items)
             )
+            stringPicker(
+                title: "Farbe",
+                allTitle: "Alle Farben",
+                selection: $filters.color,
+                values: InventoryQuery.values(\.color, in: items)
+            )
         case .keycapSet, .artisanSet:
             stringPicker(
                 title: "Hersteller",

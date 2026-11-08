@@ -51,15 +51,49 @@ struct SidebarView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            HStack {
-                Label("Native V2", systemImage: "apple.logo")
-                Spacer()
+            VStack(alignment: .leading, spacing: 3) {
+                storageStatus
+                Text("Version \(appVersion)")
+                    .foregroundStyle(.secondary)
             }
             .font(.caption)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
             .padding(.vertical, 10)
             .background(.bar)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("sidebar.storageStatus")
         }
+    }
+
+    /// A clear storage and error status, most severe state first.
+    @ViewBuilder
+    private var storageStatus: some View {
+        switch store.loadState {
+        case .idle, .loading:
+            Label("Bestand wird geladen …", systemImage: "hourglass")
+        case .failed:
+            Label("Bestand nicht geladen", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+        case .loaded:
+            if case .failed = store.editorSaveState {
+                Label("Letztes Speichern fehlgeschlagen", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            } else if case .failed = store.automaticBackupState {
+                Label("Automatisches Backup fehlgeschlagen", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            } else {
+                Label(
+                    "Gespeichert · \(store.snapshot.metadata.updatedAt.formatted(date: .abbreviated, time: .shortened))",
+                    systemImage: "checkmark.circle"
+                )
+                .help("SQLite · lokal")
+            }
+        }
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–"
     }
 
     private var routeSelection: Binding<AppRoute?> {

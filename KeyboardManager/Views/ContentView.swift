@@ -91,7 +91,7 @@ struct ContentView: View {
             await store.updatePreferredLanguage(preferredLanguage)
             didInitializeLanguage = true
             if shouldCheckForUpdates {
-                await updateController.checkForUpdates()
+                await updateController.checkForUpdatesIfDue()
             }
         }
         .onChange(of: preferredLanguage) { _, newValue in
@@ -273,6 +273,33 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
+        if case let .failed(message) = store.loadState, store.route != .migration {
+            loadFailureView(message)
+        } else {
+            routeView
+        }
+    }
+
+    private func loadFailureView(_ message: String) -> some View {
+        ContentUnavailableView {
+            Label("Bestand konnte nicht geladen werden", systemImage: "exclamationmark.triangle")
+        } description: {
+            VStack(spacing: 8) {
+                Text(message)
+                Text("Die gespeicherten Daten bleiben unverändert. Erfassen und Löschen sind gesperrt, bis der Bestand geladen ist.")
+            }
+        } actions: {
+            Button("Erneut laden") {
+                Task {
+                    await store.retryLoad()
+                }
+            }
+        }
+        .accessibilityIdentifier("load-failure")
+    }
+
+    @ViewBuilder
+    private var routeView: some View {
         switch store.route {
         case .overview:
             OverviewView(store: store)

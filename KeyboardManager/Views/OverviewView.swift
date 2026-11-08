@@ -134,6 +134,10 @@ struct OverviewView: View {
                         .width(min: 90, ideal: 130)
                     TableColumn("Format", value: \.format)
                         .width(min: 65, ideal: 80)
+                    TableColumn("Farbe", value: \.color)
+                        .width(min: 60, ideal: 90)
+                    TableColumn("Gewicht", value: \.weightMaterial)
+                        .width(min: 60, ideal: 80)
                     TableColumn("Switches") { row in
                         summaryCell(row.switchesSummary)
                     }

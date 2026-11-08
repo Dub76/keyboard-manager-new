@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -234,9 +235,14 @@ actor BackupExportService {
                     wasTranscodedFromHEIC: true
                 )
             }
+            // Photos imported before location stripping existed may still
+            // carry GPS data; keep it out of the archive, losslessly.
+            let exportData = PhotoMetadataSanitizer.containsLocation(sourceData)
+                ? PhotoMetadataSanitizer.removingLocation(from: sourceData) ?? sourceData
+                : sourceData
             return PreparedBackupPhoto(
                 record: record,
-                data: sourceData,
+                data: exportData,
                 exportMIME: record.mimeType,
                 archivePath: "photos/\(record.id).\(record.mimeType.fileExtension)",
                 wasTranscodedFromHEIC: false
@@ -262,7 +268,11 @@ actor BackupExportService {
             destination,
             source,
             0,
-            [kCGImageDestinationLossyCompressionQuality: 0.92] as CFDictionary
+            [
+                kCGImageDestinationLossyCompressionQuality: 0.92,
+                // kCFNull removes the copied GPS dictionary from the JPEG.
+                kCGImagePropertyGPSDictionary: kCFNull as Any
+            ] as CFDictionary
         )
         guard CGImageDestinationFinalize(destination) else {
             throw BackupExportError.heicTranscodingFailed(name)
@@ -289,6 +299,8 @@ actor BackupExportService {
                 name: board.name,
                 manufacturer: board.manufacturer,
                 format: board.format,
+                color: board.color.nilIfEmpty,
+                weightMaterial: board.weightMaterial.nilIfEmpty,
                 plate: board.plate,
                 pcb: board.pcb,
                 keycaps: board.legacyKeycapsName,
@@ -512,6 +524,9 @@ private struct V1ExportBoard: Encodable {
     var name: String
     var manufacturer: String
     var format: String
+    /// V2-only; left out of the JSON when empty, so V1 sees its usual format.
+    var color: String?
+    var weightMaterial: String?
     var plate: String
     var pcb: String
     var keycaps: String
@@ -627,4 +642,141 @@ private struct V1ExportPhoto: Encodable {
     var height: Int?
     var addedAt: Int64
     var file: String
+}
+
+// MARK: - Automatic backups
+
+struct AutomaticBackupEntry: Equatable, Sendable {
+    var url: URL
+    var createdAt: Date
+    var fingerprint: String
+}
+
+enum AutomaticBackupOutcome: Equatable, Sendable {
+    case created(AutomaticBackupEntry)
+    case skippedEmpty
+    case skippedUnchanged(AutomaticBackupEntry)
+    case skippedRecent(AutomaticBackupEntry)
+}
+
+/// Writes the regular V1-compatible ZIP backup on its own schedule: at most
+/// once per day, only when the collection changed since the newest backup,
+/// and keeps the newest few. A backup is restored like any V1 ZIP through
+/// the migration assistant.
+actor AutomaticBackupService {
+    static let filePrefix = "keyboard-manager-auto-"
+    static let minimumInterval: TimeInterval = 24 * 60 * 60
+    static let defaultRetainedCount = 7
+
+    nonisolated let directoryURL: URL
+    private let exporter: BackupExportService
+    private let retainedCount: Int
+    private let fileManager: FileManager
+
+    init(
+        directoryURL: URL = MigrationStorageLayout.default.automaticBackupsRootURL,
+        exporter: BackupExportService = BackupExportService(),
+        retainedCount: Int = AutomaticBackupService.defaultRetainedCount,
+        fileManager: FileManager = .default
+    ) {
+        self.directoryURL = directoryURL.standardizedFileURL
+        self.exporter = exporter
+        self.retainedCount = max(1, retainedCount)
+        self.fileManager = fileManager
+    }
+
+    /// Automatic backups in the directory, newest first. Files that do not
+    /// follow the automatic naming scheme are ignored and never touched.
+    func entries() -> [AutomaticBackupEntry] {
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: nil,
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+        return urls
+            .compactMap(Self.entry(for:))
+            .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// - Parameter force: ignores the daily interval and the change check,
+    ///   for an explicit "back up now".
+    func backUpIfDue(
+        snapshot: InventorySnapshot,
+        appVersion: String,
+        now: Date = .now,
+        force: Bool = false
+    ) async throws -> AutomaticBackupOutcome {
+        guard snapshot.counts.totalItems > 0 || snapshot.counts.photos > 0 else {
+            return .skippedEmpty
+        }
+        let fingerprint = try Self.fingerprint(of: snapshot)
+        if !force, let latest = entries().first {
+            if latest.fingerprint == fingerprint {
+                return .skippedUnchanged(latest)
+            }
+            // A clock set back must not block backups until it catches up.
+            let age = now.timeIntervalSince(latest.createdAt)
+            if age >= 0, age < Self.minimumInterval {
+                return .skippedRecent(latest)
+            }
+        }
+
+        let url = directoryURL.appendingPathComponent(
+            Self.fileName(createdAt: now, fingerprint: fingerprint)
+        )
+        _ = try await exporter.export(
+            snapshot: snapshot,
+            to: url,
+            exportedAt: now,
+            appVersion: appVersion
+        )
+        prune()
+        guard let entry = Self.entry(for: url) else {
+            throw BackupExportError.invalidDestination
+        }
+        return .created(entry)
+    }
+
+    private func prune() {
+        for entry in entries().dropFirst(retainedCount) {
+            try? fileManager.removeItem(at: entry.url)
+        }
+    }
+
+    static func fingerprint(of snapshot: InventorySnapshot) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .millisecondsSince1970
+        let digest = SHA256.hash(data: try encoder.encode(snapshot))
+        return digest.prefix(6).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func fileName(createdAt: Date, fingerprint: String) -> String {
+        "\(filePrefix)\(timestampFormatter().string(from: createdAt))-\(fingerprint).zip"
+    }
+
+    static func entry(for url: URL) -> AutomaticBackupEntry? {
+        let name = url.lastPathComponent
+        guard name.hasPrefix(filePrefix), name.hasSuffix(".zip") else { return nil }
+        let core = name.dropFirst(filePrefix.count).dropLast(".zip".count)
+        let parts = core.split(separator: "-")
+        guard parts.count == 2,
+              parts[1].count == 12,
+              parts[1].allSatisfy(\.isHexDigit),
+              let date = timestampFormatter().date(from: String(parts[0])) else {
+            return nil
+        }
+        return AutomaticBackupEntry(url: url, createdAt: date, fingerprint: String(parts[1]))
+    }
+
+    /// UTC, so a time-zone change cannot reorder or re-date existing files.
+    private static func timestampFormatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return formatter
+    }
 }

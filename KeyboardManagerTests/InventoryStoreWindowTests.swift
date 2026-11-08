@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import XCTest
 @testable import KeyboardManager
 
@@ -18,6 +19,161 @@ final class InventoryStoreWindowTests: XCTestCase {
 
         await store.updatePreferredLanguage("unsupported")
         XCTAssertEqual(store.snapshot.metadata.preferredLanguage, "de")
+    }
+
+    func testFailedLoadBlocksWritesSoStoredDataIsNotOverwritten() async throws {
+        let repository = FailingLoadRepository()
+        let store = InventoryStore(repository: repository)
+        await store.load()
+        guard case .failed = store.loadState else {
+            return XCTFail("Load should have failed")
+        }
+
+        store.prepareNewItem(.board)
+        var draft = store.editorDraft()
+        draft.name = "New"
+        let saved = await store.save(draft, preparedPhotos: [])
+        let deleted = await store.deleteItem(kind: .board, id: draft.id)
+        await store.updatePreferredLanguage("en")
+
+        XCTAssertFalse(saved)
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(
+            store.editorSaveState,
+            .failed(InventoryStore.inventoryNotLoadedMessage)
+        )
+        XCTAssertTrue(store.hasExistingV2Data)
+        let saveCount = await repository.saveCount
+        XCTAssertEqual(saveCount, 0)
+    }
+
+    func testConcurrentSavesKeepBothChanges() async throws {
+        let snapshot = InventorySnapshot(
+            metadata: .empty,
+            libraryValues: .empty,
+            boards: [
+                Board(id: "board-1", name: "One"),
+                Board(id: "board-2", name: "Two")
+            ],
+            keycapSets: [],
+            artisanSets: [],
+            switchSets: [],
+            switchInstallations: [],
+            photos: []
+        )
+        let repository = InMemoryInventoryRepository(snapshot: snapshot)
+        let store = InventoryStore(repository: repository)
+        await store.load()
+
+        store.editItem(kind: .board, id: "board-1")
+        var first = store.editorDraft()
+        first.name = "One edited"
+        store.editItem(kind: .board, id: "board-2")
+        var second = store.editorDraft()
+        second.name = "Two edited"
+
+        async let firstSaved = store.save(first, preparedPhotos: [])
+        async let secondSaved = store.save(second, preparedPhotos: [])
+        let results = await [firstSaved, secondSaved]
+
+        XCTAssertEqual(results, [true, true])
+        let persisted = try await repository.loadSnapshot()
+        XCTAssertEqual(
+            persisted.boards.map(\.name).sorted(),
+            ["One edited", "Two edited"]
+        )
+        XCTAssertEqual(store.snapshot, persisted)
+    }
+
+    func testLoadingAndSavingTriggerAutomaticBackupOnlyWhenEnabled() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("KeyboardManagerStoreAutoBackup-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let snapshot = InventorySnapshot(
+            metadata: .empty,
+            libraryValues: .empty,
+            boards: [Board(id: "board-1", name: "One")],
+            keycapSets: [],
+            artisanSets: [],
+            switchSets: [],
+            switchInstallations: [],
+            photos: []
+        )
+
+        let disabledStore = InventoryStore(
+            repository: InMemoryInventoryRepository(snapshot: snapshot),
+            automaticBackupService: AutomaticBackupService(directoryURL: directory),
+            automaticBackupsEnabled: { false }
+        )
+        await disabledStore.load()
+        await disabledStore.waitForPendingWrites()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+
+        let service = AutomaticBackupService(directoryURL: directory)
+        let store = InventoryStore(
+            repository: InMemoryInventoryRepository(snapshot: snapshot),
+            automaticBackupService: service,
+            automaticBackupsEnabled: { true }
+        )
+        await store.load()
+        await store.waitForPendingWrites()
+
+        let created = try XCTUnwrap(store.latestAutomaticBackup)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: created.url.path))
+        let entriesAfterLoad = await service.entries()
+        XCTAssertEqual(entriesAfterLoad.count, 1)
+
+        // A change on the same day is not backed up again automatically.
+        store.editItem(kind: .board, id: "board-1")
+        var draft = store.editorDraft()
+        draft.name = "One edited"
+        let saved = await store.save(draft, preparedPhotos: [])
+        await store.waitForPendingWrites()
+        XCTAssertTrue(saved)
+        let entriesAfterSave = await service.entries()
+        XCTAssertEqual(entriesAfterSave.count, 1)
+
+        await store.backUpNow()
+        let entriesAfterForce = await service.entries()
+        // Both files may carry the same second, so compare contents, not order.
+        XCTAssertEqual(entriesAfterForce.count, 2)
+        XCTAssertEqual(
+            Set(entriesAfterForce.map(\.fingerprint)).subtracting([created.fingerprint]).count,
+            1
+        )
+        XCTAssertEqual(store.automaticBackupState, .created(entriesAfterForce[0].createdAt))
+    }
+
+    func testDroppedPhotosBecomeLocalImageFiles() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("KeyboardManagerDropTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let png = try XCTUnwrap(Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        ))
+        let finderPhoto = directory.appendingPathComponent("Board.png")
+        try png.write(to: finderPhoto)
+        let textFile = directory.appendingPathComponent("Notiz.txt")
+        try Data("kein Bild".utf8).write(to: textFile)
+
+        let fromFinder = NSItemProvider(object: finderPhoto as NSURL)
+        let notAnImage = NSItemProvider(object: textFile as NSURL)
+        let fromPhotosApp = NSItemProvider(item: png as NSData, typeIdentifier: UTType.png.identifier)
+
+        let loader = DroppedPhotoLoader()
+        let result = await loader.load([fromFinder, notAnImage, fromPhotosApp])
+
+        XCTAssertEqual(result.skippedCount, 1)
+        XCTAssertEqual(result.urls.count, 2)
+        XCTAssertEqual(result.urls.first?.standardizedFileURL, finderPhoto.standardizedFileURL)
+        let copied = try XCTUnwrap(result.urls.last)
+        XCTAssertTrue(copied.path.hasPrefix(loader.temporaryDirectory.path))
+        XCTAssertEqual(try Data(contentsOf: copied), png)
+
+        loader.removeTemporaryFiles()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: copied.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: finderPhoto.path), "Finder-Dateien bleiben unberührt.")
     }
 
     func testCleanEditorAllowsWindowToCloseImmediately() {
@@ -242,5 +398,17 @@ private final class TableBridgeDataSource: NSObject, NSTableViewDataSource {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
         rowCount
+    }
+}
+
+private actor FailingLoadRepository: InventoryRepository {
+    private(set) var saveCount = 0
+
+    func loadSnapshot() async throws -> InventorySnapshot {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+
+    func saveSnapshot(_ snapshot: InventorySnapshot) async throws {
+        saveCount += 1
     }
 }

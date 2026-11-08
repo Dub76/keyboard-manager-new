@@ -11,6 +11,85 @@ final class InventoryModelsTests: XCTestCase {
         )
     }
 
+    func testBoardsSavedBeforeColorExistedStillDecode() throws {
+        var current = InventorySnapshot.empty
+        current.boards = [Board(id: "board-1", name: "Alt", format: "65%")]
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .millisecondsSince1970
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoder.encode(current)) as? [String: Any]
+        )
+        var boards = try XCTUnwrap(json["boards"] as? [[String: Any]])
+        boards[0].removeValue(forKey: "color")
+        boards[0].removeValue(forKey: "weightMaterial")
+        json["boards"] = boards
+        let legacyData = try JSONSerialization.data(withJSONObject: json)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .millisecondsSince1970
+        let decoded = try decoder.decode(InventorySnapshot.self, from: legacyData)
+
+        XCTAssertEqual(decoded.boards.first?.color, "")
+        XCTAssertEqual(decoded.boards.first?.weightMaterial, "")
+        XCTAssertEqual(decoded.boards.first?.format, "65%")
+
+        var colored = decoded
+        colored.boards[0].color = "Navy"
+        let roundTrip = try decoder.decode(InventorySnapshot.self, from: encoder.encode(colored))
+        XCTAssertEqual(roundTrip.boards.first?.color, "Navy")
+    }
+
+    func testBoardColorIsSavedRememberedSearchableAndFilterable() throws {
+        var source = InventorySnapshot.empty
+        source.boards = [Board(id: "board-2", name: "Zweites", color: "Silber")]
+        var draft = InventoryDraft(kind: .board)
+        draft.name = "Erstes"
+        draft.color = "  Navy  "
+
+        let saved = try InventoryEditingService().saving(draft, newPhotos: [], in: source).snapshot
+
+        let board = try XCTUnwrap(saved.boards.first { $0.id == draft.id })
+        XCTAssertEqual(board.color, "Navy")
+        XCTAssertEqual(InventoryDraft(board: board, installations: []).color, "Navy")
+        XCTAssertTrue(saved.libraryValues.valuesByKey["boardColors", default: []].contains("Navy"))
+
+        var filters = InventoryFilters()
+        filters.color = "Navy"
+        XCTAssertFalse(filters.isEmpty(for: .board))
+        let filtered = InventoryQuery.results(in: saved, kind: .board, filters: filters, sort: .name)
+        XCTAssertEqual(filtered.map(\.name), ["Erstes"])
+
+        var search = InventoryFilters()
+        search.searchText = "silber"
+        XCTAssertEqual(
+            InventoryQuery.results(in: saved, kind: .board, filters: search, sort: .name).map(\.name),
+            ["Zweites"]
+        )
+    }
+
+    func testWeightMaterialIsSavedRememberedAndSuggested() async throws {
+        var draft = InventoryDraft(kind: .board)
+        draft.name = "Schwer"
+        draft.weightMaterial = " Wolfram "
+        let saved = try InventoryEditingService().saving(draft, newPhotos: [], in: .empty).snapshot
+        let board = try XCTUnwrap(saved.boards.first)
+        XCTAssertEqual(board.weightMaterial, "Wolfram")
+        XCTAssertEqual(InventoryDraft(board: board, installations: []).weightMaterial, "Wolfram")
+
+        let summary = try XCTUnwrap(InventoryQuery.items(in: saved, kind: .board).first)
+        XCTAssertEqual(summary.weightMaterial, "Wolfram")
+        XCTAssertTrue(summary.searchableText.contains("Wolfram"))
+
+        let store = await MainActor.run { InventoryStore(repository: InMemoryInventoryRepository(snapshot: saved)) }
+        await store.load()
+        let suggestions = await store.weightMaterialSuggestions()
+        XCTAssertEqual(suggestions.first, "Wolfram")
+        for material in ["Messing", "Kupfer", "Aluminium", "Edelstahl"] {
+            XCTAssertTrue(suggestions.contains(material), material)
+        }
+        XCTAssertEqual(suggestions.count, Set(suggestions.map { $0.lowercased() }).count)
+    }
+
     func testPrimaryNavigationUsesOverviewGalleryCaptureOrder() {
         XCTAssertEqual(AppRoute.primary, [.overview, .gallery, .capture])
     }

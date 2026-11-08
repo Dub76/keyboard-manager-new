@@ -83,6 +83,36 @@ final class KeyboardManagerUITests: XCTestCase {
         }
     }
 
+    func testDamagedDatabaseShowsLoadFailureAndStaysUntouched() throws {
+        continueAfterFailure = false
+        let root = makeIsolatedRoot()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let databaseURL = root.appendingPathComponent("inventory.sqlite")
+        let damaged = Data("not a database".utf8) + Data(repeating: 0xA5, count: 4_096)
+        try damaged.write(to: databaseURL)
+
+        let app = launchIsolatedApp(root: root)
+        defer { app.terminate() }
+
+        XCTAssertTrue(
+            app.staticTexts["Bestand konnte nicht geladen werden"].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.buttons["Erneut laden"].exists)
+
+        // A new entry must not open an editor on top of the empty placeholder.
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(
+            app.staticTexts["Bestand konnte nicht geladen werden"].waitForExistence(timeout: 2)
+        )
+
+        app.buttons["Erneut laden"].click()
+        XCTAssertTrue(
+            app.staticTexts["Bestand konnte nicht geladen werden"].waitForExistence(timeout: 3)
+        )
+        XCTAssertEqual(try Data(contentsOf: databaseURL), damaged)
+    }
+
     func testMigrationDiscoveryUsesIsolatedApplicationSupportRoot() {
         continueAfterFailure = false
         let app = launchIsolatedApp()
@@ -104,16 +134,16 @@ final class KeyboardManagerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3 bekannte Kandidaten wurden geprüft. ZIP, JSON oder ein anderer Datenordner können weiterhin manuell gewählt werden."].exists)
     }
 
-    private func launchIsolatedApp(language: String? = nil) -> XCUIApplication {
+    private func makeIsolatedRoot() -> URL {
+        URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("KeyboardManagerUITests-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    private func launchIsolatedApp(language: String? = nil, root: URL? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-ApplePersistenceIgnoreState", "YES"]
         app.launchArguments += ["-preferredLanguage", language ?? "de"]
-        app.launchEnvironment["KEYBOARD_MANAGER_UI_TEST_ROOT"] = URL(
-            fileURLWithPath: NSTemporaryDirectory(),
-            isDirectory: true
-        )
-        .appendingPathComponent("KeyboardManagerUITests-\(UUID().uuidString)", isDirectory: true)
-        .path
+        app.launchEnvironment["KEYBOARD_MANAGER_UI_TEST_ROOT"] = (root ?? makeIsolatedRoot()).path
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
         return app

@@ -44,6 +44,12 @@ struct MigrationStorageLayout: Hashable, Sendable {
         rootURL.appendingPathComponent("Backups", isDirectory: true)
     }
 
+    /// Daily ZIP backups, kept apart from the `<migration-id>-previous`
+    /// folders that a migration moves into `Backups/`.
+    var automaticBackupsRootURL: URL {
+        backupsRootURL.appendingPathComponent("Automatic", isDirectory: true)
+    }
+
     var reportsRootURL: URL {
         rootURL.appendingPathComponent("MigrationReports", isDirectory: true)
     }

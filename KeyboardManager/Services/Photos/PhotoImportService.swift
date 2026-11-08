@@ -207,9 +207,16 @@ actor PhotoImportService {
         let output: (data: Data, mime: PhotoMIMEType, width: Int?, height: Int?)
         if let width, let height,
            width > Self.maximumPixelWidth || height > Self.maximumPixelHeight {
+            // Re-encoding drops all source metadata, including the location.
             output = try scaledImage(from: source, originalMIME: sourceMIME, name: name)
-        } else {
+        } else if !PhotoMetadataSanitizer.containsLocation(source) {
             output = (data, sourceMIME, width, height)
+        } else if let cleaned = PhotoMetadataSanitizer.removingLocation(from: source) {
+            output = (cleaned, sourceMIME, width, height)
+        } else {
+            // No lossless copy for this format (for example WebP): re-encode
+            // at the original size, which writes no location data.
+            output = try scaledImage(from: source, originalMIME: sourceMIME, name: name)
         }
         guard output.data.count <= Self.maximumSourceBytes else {
             throw PhotoImportError.tooLarge(name)
@@ -337,6 +344,99 @@ actor PhotoImportService {
     }
 }
 
+/// Removes GPS location data from photos so it never ends up in the library
+/// or in backups. Camera orientation and other metadata stay intact.
+enum PhotoMetadataSanitizer {
+    static func containsLocation(_ source: CGImageSource) -> Bool {
+        (0..<CGImageSourceGetCount(source)).contains { index in
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            return properties?[kCGImagePropertyGPSDictionary] != nil
+        }
+    }
+
+    static func containsLocation(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
+        return containsLocation(source)
+    }
+
+    /// Returns the image without its location and with orientation and all
+    /// other metadata kept. First tries a lossless copy with the GPS tags
+    /// removed (works for JPEG and HEIC); where the format keeps them anyway
+    /// (PNG), the image is written again without the GPS dictionary, which
+    /// is lossless for PNG. Returns nil if neither removes the location.
+    static func removingLocation(from source: CGImageSource) -> Data? {
+        guard let type = CGImageSourceGetType(source) else { return nil }
+        let count = CGImageSourceGetCount(source)
+        guard count > 0 else { return nil }
+
+        if let copied = losslessCopyWithoutGPSTags(source, type: type, count: count),
+           !containsLocation(copied) {
+            return copied
+        }
+
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, type, count, nil) else {
+            return nil
+        }
+        let properties: [CFString: Any] = [
+            kCGImagePropertyGPSDictionary: kCFNull as Any,
+            kCGImageDestinationLossyCompressionQuality: 0.95
+        ]
+        for index in 0..<count {
+            CGImageDestinationAddImageFromSource(destination, source, index, properties as CFDictionary)
+        }
+        guard CGImageDestinationFinalize(destination), !containsLocation(output as Data) else {
+            return nil
+        }
+        return output as Data
+    }
+
+    /// `kCGImageMetadataShouldExcludeGPS` is not used on purpose: for JPEG it
+    /// also drops the orientation, so photos would appear rotated.
+    private static func losslessCopyWithoutGPSTags(
+        _ source: CGImageSource,
+        type: CFString,
+        count: Int
+    ) -> Data? {
+        guard count == 1,
+              let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil),
+              let edited = CGImageMetadataCreateMutableCopy(metadata) else {
+            return nil
+        }
+        var gpsPaths: [CFString] = []
+        CGImageMetadataEnumerateTagsUsingBlock(metadata, nil, nil) { path, tag in
+            let name = CGImageMetadataTagCopyName(tag) as String? ?? ""
+            let namespace = CGImageMetadataTagCopyNamespace(tag) as String? ?? ""
+            if (path as String).hasPrefix("exif:GPS")
+                || (namespace.contains("exif") && name.hasPrefix("GPS")) {
+                gpsPaths.append(path)
+            }
+            return true
+        }
+        guard !gpsPaths.isEmpty else { return nil }
+        for path in gpsPaths {
+            CGImageMetadataRemoveTagWithPath(edited, nil, path)
+        }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, type, 1, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageDestinationMetadata: edited,
+            kCGImageDestinationMergeMetadata: false
+        ]
+        guard CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, nil) else {
+            return nil
+        }
+        return output as Data
+    }
+
+    static func removingLocation(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return removingLocation(from: source)
+    }
+}
+
 private final class HTTPSOnlyRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(
         _ session: URLSession,
@@ -379,7 +479,7 @@ struct URLSessionExternalImageFetcher: ExternalImageFetching {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("image/*", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await session.data(for: request)
+        let (bytes, response) = try await session.bytes(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode),
               let responseURL = httpResponse.url else {
@@ -387,11 +487,24 @@ struct URLSessionExternalImageFetcher: ExternalImageFetching {
                 url.host(percentEncoded: false) ?? "unbekannter Host"
             )
         }
-        if httpResponse.expectedContentLength > Int64(maximumBytes)
-            || data.count > maximumBytes {
-            throw PhotoImportError.tooLarge(
-                httpResponse.suggestedFilename ?? url.lastPathComponent
-            )
+        let tooLarge = PhotoImportError.tooLarge(
+            httpResponse.suggestedFilename ?? url.lastPathComponent
+        )
+        if httpResponse.expectedContentLength > Int64(maximumBytes) {
+            throw tooLarge
+        }
+
+        // Enforce the limit while streaming so an oversized or endless body
+        // is cut off instead of being buffered completely first.
+        var data = Data()
+        if httpResponse.expectedContentLength > 0 {
+            data.reserveCapacity(Int(httpResponse.expectedContentLength))
+        }
+        for try await byte in bytes {
+            guard data.count < maximumBytes else {
+                throw tooLarge
+            }
+            data.append(byte)
         }
 
         return ExternalImageFetchResult(

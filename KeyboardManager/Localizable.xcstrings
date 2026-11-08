@@ -141,6 +141,16 @@
         }
       }
     },
+    "%lld abgelegte Elemente sind keine Bilder und wurden übersprungen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld dropped items are not images and were skipped."
+          }
+        }
+      }
+    },
     "%lld bekannte Kandidaten wurden geprüft. ZIP, JSON oder ein anderer Datenordner können weiterhin manuell gewählt werden.": {
       "localizations": {
         "en": {
@@ -269,6 +279,16 @@
         }
       }
     },
+    "Abgelegtes Foto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dropped photo"
+          }
+        }
+      }
+    },
     "Aktuelle Filter anwenden": {
       "localizations": {
         "en": {
@@ -289,12 +309,32 @@
         }
       }
     },
+    "Alle Farben": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All colors"
+          }
+        }
+      }
+    },
     "Alle Pins": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "All pins"
+          }
+        }
+      }
+    },
+    "Alles auswählen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select All"
           }
         }
       }
@@ -325,6 +365,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Older full backup with embedded photos"
+          }
+        }
+      }
+    },
+    "Aluminium": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aluminum"
           }
         }
       }
@@ -389,6 +439,46 @@
         }
       }
     },
+    "Ausschneiden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cut"
+          }
+        }
+      }
+    },
+    "Automatische Backups": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic backups"
+          }
+        }
+      }
+    },
+    "Automatisches Backup fehlgeschlagen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic backup failed"
+          }
+        }
+      }
+    },
+    "Automatisches Backup fehlgeschlagen: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic backup failed: %@"
+          }
+        }
+      }
+    },
     "Backup fehlgeschlagen: %@": {
       "localizations": {
         "en": {
@@ -399,12 +489,32 @@
         }
       }
     },
+    "Backup gespeichert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup saved."
+          }
+        }
+      }
+    },
     "Backup sichern": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Save backup"
+          }
+        }
+      }
+    },
+    "Backup wird erstellt und kontrolliert …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup is being created and verified…"
           }
         }
       }
@@ -425,6 +535,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit"
+          }
+        }
+      }
+    },
+    "Beim Start wird höchstens einmal täglich nach stabilen GitHub-Releases gesucht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At launch, stable GitHub releases are checked at most once a day."
           }
         }
       }
@@ -505,6 +625,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Export inventory…"
+          }
+        }
+      }
+    },
+    "Bestand konnte nicht geladen werden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inventory could not be loaded"
+          }
+        }
+      }
+    },
+    "Bestand nicht geladen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inventory not loaded"
+          }
+        }
+      }
+    },
+    "Bestand wird geladen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading inventory…"
           }
         }
       }
@@ -885,6 +1035,16 @@
         }
       }
     },
+    "Daten: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data: %@"
+          }
+        }
+      }
+    },
     "Datenbankdatei fehlt.": {
       "localizations": {
         "en": {
@@ -975,12 +1135,32 @@
         }
       }
     },
+    "Der Bestand ist leer, es gibt nichts zu sichern.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The inventory is empty; there is nothing to back up."
+          }
+        }
+      }
+    },
     "Der Bestand überschreitet die vom Backupformat erlaubte Anzahl von Einträgen.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "The inventory exceeds the number of entries allowed by the backup format."
+          }
+        }
+      }
+    },
+    "Der Bestand wurde nicht geladen. Änderungen sind gesperrt, damit keine gespeicherten Daten überschrieben werden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The inventory was not loaded. Changes are blocked so that no stored data is overwritten."
           }
         }
       }
@@ -1245,6 +1425,36 @@
         }
       }
     },
+    "Die gespeicherten Daten bleiben unverändert. Erfassen und Löschen sind gesperrt, bis der Bestand geladen ist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The stored data stays unchanged. Capturing and deleting are blocked until the inventory is loaded."
+          }
+        }
+      }
+    },
+    "Die Hinweise verschwinden aus der Anzeige. Ihr Wortlaut wird mit Datum in den Notizen des Eintrags festgehalten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The warnings are no longer shown. Their wording is recorded with the date in the entry’s notes."
+          }
+        }
+      }
+    },
+    "Die Importhinweise wurden entfernt und in den Notizen festgehalten.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The import warnings were removed and recorded in the notes."
+          }
+        }
+      }
+    },
     "Die interne ID „%@“ ist nicht mit dem V1-Backupformat kompatibel.": {
       "localizations": {
         "en": {
@@ -1485,6 +1695,16 @@
         }
       }
     },
+    "Edelstahl": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stainless steel"
+          }
+        }
+      }
+    },
     "Editoränderung": {
       "localizations": {
         "en": {
@@ -1555,6 +1775,16 @@
         }
       }
     },
+    "Einfügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste"
+          }
+        }
+      }
+    },
     "Eingebettete Bilddaten sind ungültig oder zu groß: %@": {
       "localizations": {
         "en": {
@@ -1615,6 +1845,16 @@
         }
       }
     },
+    "Entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
     "Erfasse einen Eintrag mit Foto oder importiere deinen V1-Bestand.": {
       "localizations": {
         "en": {
@@ -1651,6 +1891,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Detected inventory"
+          }
+        }
+      }
+    },
+    "Erneut laden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload"
           }
         }
       }
@@ -1775,6 +2025,36 @@
         }
       }
     },
+    "Fachfeld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category field"
+          }
+        }
+      }
+    },
+    "Farbe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color"
+          }
+        }
+      }
+    },
+    "Farbe: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color: %@"
+          }
+        }
+      }
+    },
     "Federlänge": {
       "localizations": {
         "en": {
@@ -1895,6 +2175,16 @@
         }
       }
     },
+    "Fotos hier ablegen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop photos here"
+          }
+        }
+      }
+    },
     "Fotos hinzufügen …": {
       "localizations": {
         "en": {
@@ -2005,6 +2295,36 @@
         }
       }
     },
+    "Gespeichert · %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved · %@"
+          }
+        }
+      }
+    },
+    "Gewicht": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight"
+          }
+        }
+      }
+    },
+    "Gewicht: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight: %@"
+          }
+        }
+      }
+    },
     "Hauptfoto": {
       "localizations": {
         "en": {
@@ -2055,6 +2375,26 @@
         }
       }
     },
+    "Hinweise entfernen …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove warnings…"
+          }
+        }
+      }
+    },
+    "Höchstens ein Backup pro Tag und nur, wenn sich etwas geändert hat. Die letzten 7 bleiben erhalten. Wiederherstellen: „V1-Migration“ → „Andere V1-Quelle auswählen …“ und die gewünschte ZIP-Datei wählen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At most one backup per day, and only when something changed. The latest 7 are kept. To restore: “V1 migration” → “Select another V1 source…” and choose the ZIP file."
+          }
+        }
+      }
+    },
     "HTTPS-Quelladresse": {
       "localizations": {
         "en": {
@@ -2071,6 +2411,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Required files are missing from the Excel package."
+          }
+        }
+      }
+    },
+    "Im Finder zeigen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in Finder"
           }
         }
       }
@@ -2121,6 +2471,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Imported images are loading…"
+          }
+        }
+      }
+    },
+    "Importhinweise am %@ entfernt:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import warnings removed on %@:"
+          }
+        }
+      }
+    },
+    "Importhinweise entfernen?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove import warnings?"
           }
         }
       }
@@ -2201,6 +2571,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yes"
+          }
+        }
+      }
+    },
+    "Jetzt sichern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back up now"
           }
         }
       }
@@ -2425,12 +2805,32 @@
         }
       }
     },
+    "Kopieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
     "Kraft: %@": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Force: %@"
+          }
+        }
+      }
+    },
+    "Kupfer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copper"
           }
         }
       }
@@ -2461,6 +2861,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Last database change: %@"
+          }
+        }
+      }
+    },
+    "Letztes Backup": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup"
+          }
+        }
+      }
+    },
+    "Letztes Speichern fehlgeschlagen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last save failed"
+          }
+        }
+      }
+    },
+    "Lizenz: GNU GPL Version 3 oder später.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "License: GNU GPL version 3 or later."
           }
         }
       }
@@ -2505,12 +2935,32 @@
         }
       }
     },
+    "Mechanische Tastatur-Sammlungen lokal erfassen, verwalten und sichern.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capture, manage and back up mechanical keyboard collections locally."
+          }
+        }
+      }
+    },
     "Menge absteigend": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Quantity descending"
+          }
+        }
+      }
+    },
+    "Messing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brass"
           }
         }
       }
@@ -2611,6 +3061,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Name"
+          }
+        }
+      }
+    },
+    "Name kopieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Name"
           }
         }
       }
@@ -2785,6 +3245,16 @@
         }
       }
     },
+    "Noch keines": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None yet"
+          }
+        }
+      }
+    },
     "Notizen": {
       "localizations": {
         "en": {
@@ -2811,6 +3281,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Read-only V1 source"
+          }
+        }
+      }
+    },
+    "Oder Fotos aus Finder, Fotos oder dem Browser hierher ziehen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or drag photos here from Finder, Photos or a browser."
           }
         }
       }
@@ -3001,6 +3481,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Source URL"
+          }
+        }
+      }
+    },
+    "Quellcode: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source code: %@"
           }
         }
       }
@@ -3225,6 +3715,16 @@
         }
       }
     },
+    "Stahl": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steel"
+          }
+        }
+      }
+    },
     "Status": {
       "localizations": {
         "en": {
@@ -3305,6 +3805,16 @@
         }
       }
     },
+    "Täglich automatisch sichern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back up automatically every day"
+          }
+        }
+      }
+    },
     "Tags": {
       "localizations": {
         "en": {
@@ -3321,6 +3831,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tags, separated by commas"
+          }
+        }
+      }
+    },
+    "Titan": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titanium"
           }
         }
       }
@@ -3351,6 +3871,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Type: %@"
+          }
+        }
+      }
+    },
+    "Über Keyboard Manager": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About Keyboard Manager"
           }
         }
       }
@@ -3625,6 +4155,16 @@
         }
       }
     },
+    "Version %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@"
+          }
+        }
+      }
+    },
     "von %lld": {
       "localizations": {
         "en": {
@@ -3725,6 +4265,16 @@
         }
       }
     },
+    "Wiederholen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redo"
+          }
+        }
+      }
+    },
     "Wird gespeichert …": {
       "localizations": {
         "en": {
@@ -3785,72 +4335,22 @@
         }
       }
     },
-    "Alles auswählen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select All"
-          }
-        }
-      }
-    },
-    "Ausschneiden": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cut"
-          }
-        }
-      }
-    },
-    "Einfügen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Paste"
-          }
-        }
-      }
-    },
-    "Kopieren": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy"
-          }
-        }
-      }
-    },
-    "Name kopieren": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy Name"
-          }
-        }
-      }
-    },
-    "Wiederholen": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redo"
-          }
-        }
-      }
-    },
     "Zuletzt geändert": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Last changed"
+          }
+        }
+      }
+    },
+    "Zuletzt geprüft: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last checked: %@"
           }
         }
       }

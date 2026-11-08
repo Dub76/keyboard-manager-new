@@ -25,6 +25,9 @@ struct V1Board: Decodable, Sendable {
     var name: String?
     var manufacturer: String?
     var format: String?
+    /// Not part of V1; written by V2 backups so a restore keeps the color.
+    var color: String?
+    var weightMaterial: String?
     var plate: String?
     var pcb: String?
     var keycaps: String?

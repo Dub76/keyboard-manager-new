@@ -9,6 +9,7 @@ struct InventorySpotlightView: View {
     @State private var currentID: String
     @State private var selectedPhotoID: String?
     @State private var isDeleteConfirmationPresented = false
+    @State private var isClearWarningsConfirmationPresented = false
     @State private var largePhotoWindow = InventoryLargePhotoWindowController()
 
     init(
@@ -72,8 +73,42 @@ struct InventorySpotlightView: View {
         } message: {
             Text("Der Eintrag, seine Fotos und seine Beziehungen werden konsistent entfernt.")
         }
+        .confirmationDialog(
+            "Importhinweise entfernen?",
+            isPresented: $isClearWarningsConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("Entfernen") {
+                guard let item = currentItem else { return }
+                Task {
+                    _ = await store.clearImportWarnings(switchSetID: item.id)
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Hinweise verschwinden aus der Anzeige. Ihr Wortlaut wird mit Datum in den Notizen des Eintrags festgehalten.")
+        }
         .onDisappear {
             largePhotoWindow.close()
+        }
+    }
+
+    @ViewBuilder
+    private func importWarningsSection(for item: InventoryItemSummary) -> some View {
+        let warnings = item.kind == .switchSet
+            ? store.importWarnings(forSwitchSetID: item.id)
+            : []
+        if !warnings.isEmpty {
+            Divider()
+            Text("Migrationshinweise")
+                .font(.headline)
+            ForEach(warnings, id: \.self) { warning in
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .textSelection(.enabled)
+            }
+            Button("Hinweise entfernen …") {
+                isClearWarningsConfirmationPresented = true
+            }
         }
     }
 
@@ -251,6 +286,8 @@ struct InventorySpotlightView: View {
                     Text(item.notes)
                         .textSelection(.enabled)
                 }
+
+                importWarningsSection(for: item)
 
                 if let url = validatedHTTPSURL(item.sourceURL) {
                     Divider()

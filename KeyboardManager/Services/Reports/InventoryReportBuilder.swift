@@ -73,6 +73,7 @@ enum InventoryReportBuilder {
                         id: board.id,
                         values: [
                             .text(board.name), .text(board.manufacturer), .text(board.format),
+                            .text(board.color), .text(board.weightMaterial),
                             .text(board.plate), .text(board.pcb),
                             .text(switchNames.nilIfEmpty ?? board.legacySwitchesName),
                             .text(board.keycapSetID.flatMap { keycaps[$0] } ?? board.legacyKeycapsName),
@@ -224,6 +225,9 @@ enum InventoryReportBuilder {
         if !filters.format.isEmpty {
             parts.append(L10n.text("Format: %@", language: language, arguments: filters.format))
         }
+        if !filters.color.isEmpty {
+            parts.append(L10n.text("Farbe: %@", language: language, arguments: filters.color))
+        }
         if !filters.profile.isEmpty {
             parts.append(L10n.text("Profil: %@", language: language, arguments: filters.profile))
         }
@@ -262,6 +266,8 @@ enum InventoryReportBuilder {
             localizedColumn("Name", 24, pdf: true, language: language),
             localizedColumn("Hersteller", 18, pdf: true, language: language),
             localizedColumn("Format", 12, pdf: true, language: language),
+            localizedColumn("Farbe", 14, language: language),
+            localizedColumn("Gewicht", 12, language: language),
             localizedColumn("Plate", 16, language: language),
             localizedColumn("PCB", 18, language: language),
             localizedColumn("Switches", 22, pdf: true, language: language),

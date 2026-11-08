@@ -548,6 +548,8 @@ struct V1BackupReader: Sendable {
             name: trimmed(value.name),
             manufacturer: trimmed(value.manufacturer),
             format: trimmed(value.format),
+            color: trimmed(value.color),
+            weightMaterial: trimmed(value.weightMaterial),
             plate: trimmed(value.plate),
             pcb: trimmed(value.pcb),
             stabilizers: trimmed(value.stabs),

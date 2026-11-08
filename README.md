@@ -21,13 +21,13 @@ Für Build und Start:
 
 ## Datenschutz
 
-Sammlung und Fotos bleiben lokal. Eine externe Bildadresse wird nur nach sichtbarer Bestätigung und ausschließlich per HTTPS einmalig geladen. Details: [PRIVACY.md](PRIVACY.md).
+Sammlung und Fotos bleiben lokal. Beim Fotoimport und in Backups entfernt die App GPS-Standortdaten aus den Bildern. Eine externe Bildadresse wird nur nach sichtbarer Bestätigung und ausschließlich per HTTPS einmalig geladen. Details: [PRIVACY.md](PRIVACY.md).
 
 ## Release
 
 Der auslieferbare Build ist ein Developer-ID-signiertes und von Apple notarisiertes universelles DMG. Anleitung, Voraussetzungen und GitHub-CI-Konfiguration: [RELEASE.md](RELEASE.md).
 
-Die App prüft beim Start das neueste stabile GitHub-Release. Wenn eine neuere Version verfügbar ist, kann der Nutzer das DMG laden; vor dem Öffnen wird es gegen die mitveröffentlichte SHA-256-Datei geprüft.
+Die App prüft beim Start höchstens einmal täglich das neueste stabile GitHub-Release. Wenn eine neuere Version verfügbar ist, kann der Nutzer das DMG laden; vor dem Öffnen wird es gegen die mitveröffentlichte SHA-256-Datei geprüft. Diese Prüfsumme erkennt beschädigte oder unvollständige Downloads. Weil sie aus demselben Release stammt, belegt sie nicht die Herkunft; dafür sorgen Developer-ID-Signatur und Apple-Notarisierung, die macOS beim Öffnen prüft.
 
 ## Dokumentation
 

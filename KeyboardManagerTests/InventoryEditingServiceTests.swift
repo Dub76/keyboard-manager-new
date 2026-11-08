@@ -44,6 +44,44 @@ final class InventoryEditingServiceTests: XCTestCase {
         return source
     }
 
+    func testClearingImportWarningsLogsThemInNotes() throws {
+        var source = InventorySnapshot.empty
+        source.switchSets = [
+            SwitchSet(
+                id: "switch-1",
+                name: "Switches",
+                quantity: 10,
+                importWarnings: ["Board „Alt“ nicht gefunden", "Menge geschätzt"],
+                notes: "Gekauft 2024"
+            )
+        ]
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let result = try InventoryEditingService().clearingImportWarnings(
+            switchSetID: "switch-1",
+            in: source,
+            now: now
+        )
+
+        let switchSet = try XCTUnwrap(result.switchSets.first)
+        XCTAssertEqual(switchSet.importWarnings, [])
+        XCTAssertTrue(switchSet.notes.hasPrefix("Gekauft 2024\n\n"))
+        XCTAssertTrue(switchSet.notes.contains("2023-11-14"))
+        XCTAssertTrue(switchSet.notes.contains("- Board „Alt“ nicht gefunden"))
+        XCTAssertTrue(switchSet.notes.contains("- Menge geschätzt"))
+        XCTAssertEqual(switchSet.updatedAt, now)
+
+        let unchanged = try InventoryEditingService().clearingImportWarnings(
+            switchSetID: "switch-1",
+            in: result,
+            now: now + 60
+        )
+        XCTAssertEqual(unchanged, result)
+        XCTAssertThrowsError(
+            try InventoryEditingService().clearingImportWarnings(switchSetID: "missing", in: source)
+        )
+    }
+
     func testBoardDetachDoesNotResurrectLegacyNames() throws {
         let source = legacyRelationshipFixture()
         var draft = InventoryDraft(board: source.boards[0], installations: source.switchInstallations)
