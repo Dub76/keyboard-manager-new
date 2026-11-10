@@ -3915,6 +3915,16 @@
         }
       }
     },
+    "Neuer Wert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New value"
+          }
+        }
+      }
+    },
     "Neues Board": {
       "localizations": {
         "en": {

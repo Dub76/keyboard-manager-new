@@ -86,8 +86,11 @@ struct BulkEditView: View {
                     .labelsHidden()
                 } else {
                     HStack {
-                        TextField(field.title, text: valueBinding(field, default: ""))
+                        // A grouped form draws an empty, label-less field
+                        // without any outline, so it gets a visible border.
+                        TextField(field.title, text: valueBinding(field, default: ""), prompt: Text("Neuer Wert"))
                             .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
                         let suggestions = suggestions(for: field)
                         if !suggestions.isEmpty {
                             Menu {

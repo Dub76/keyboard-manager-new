@@ -542,6 +542,7 @@ const translations = {
   "Nur angehakte Felder werden geändert. Ein angehaktes leeres Feld wird bei allen Einträgen geleert.": "Only checked fields are changed. A checked empty field is cleared on all entries.",
   "%lld Einträge ändern": "Change %lld entries",
   "Vorhandene Werte": "Existing values",
+  "Neuer Wert": "New value",
   "CSV-Import: %@": "CSV import: %@",
   "Datei kann nicht importiert werden": "File cannot be imported",
   "Neue Einträge werden angelegt; vorhandene werden nicht verändert. Fotos und Verknüpfungen werden nicht importiert.": "New entries are created; existing ones are not changed. Photos and links are not imported.",
