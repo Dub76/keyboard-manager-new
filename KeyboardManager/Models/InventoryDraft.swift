@@ -190,3 +190,68 @@ struct InventoryDraft: Hashable, Sendable {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+extension InventoryDraft {
+    /// Builds the editor draft for an existing item, or nil if it is gone.
+    init?(kind: InventoryItemKind, id: String, in snapshot: InventorySnapshot) {
+        switch kind {
+        case .board:
+            guard let board = snapshot.boards.first(where: { $0.id == id }) else { return nil }
+            self.init(board: board, installations: snapshot.switchInstallations)
+        case .keycapSet:
+            guard let item = snapshot.keycapSets.first(where: { $0.id == id }) else { return nil }
+            self.init(keycapSet: item)
+        case .artisanSet:
+            guard let item = snapshot.artisanSets.first(where: { $0.id == id }) else { return nil }
+            self.init(artisanSet: item)
+        case .switchSet:
+            guard let item = snapshot.switchSets.first(where: { $0.id == id }) else { return nil }
+            self.init(switchSet: item, installations: snapshot.switchInstallations)
+        }
+    }
+
+    /// A new, unsaved copy of this entry. Relations that may exist only once
+    /// (a keycap set sits on one board, switches are counted per board) and
+    /// V1 import metadata stay with the original. Photos are copied by the
+    /// caller, because the copy needs its own photo files.
+    func duplicated(id: String = UUID().uuidString, now: Date = .now) -> InventoryDraft {
+        var copy = self
+        copy.id = id
+        copy.createdAt = now
+        copy.name = L10n.text("%@ (Kopie)", arguments: normalizedName)
+        copy.photoIDs = []
+        copy.mainPhotoID = nil
+        copy.keycapSetID = nil
+        copy.mountedBoardID = nil
+        copy.installations = [:]
+        copy.legacyKeycapsName = ""
+        copy.legacySwitchesName = ""
+        copy.importedBoardText = ""
+        copy.importedBoardAllocations = []
+        copy.importSource = ""
+        copy.importRow = 0
+        copy.importKey = ""
+        copy.importWarnings = []
+        copy.trelloCardID = ""
+        copy.trelloListName = ""
+        return copy
+    }
+
+    /// Moves a photo onto the position of another one. Dragging to the right
+    /// places it behind the target, dragging to the left in front of it.
+    mutating func movePhoto(_ photoID: String, onto targetID: String) {
+        guard photoID != targetID,
+              let from = photoIDs.firstIndex(of: photoID),
+              let to = photoIDs.firstIndex(of: targetID) else { return }
+        photoIDs.remove(at: from)
+        photoIDs.insert(photoID, at: to)
+    }
+
+    /// Moves a photo one place to the front (-1) or to the back (+1).
+    mutating func movePhoto(_ photoID: String, by offset: Int) {
+        guard let from = photoIDs.firstIndex(of: photoID) else { return }
+        let to = from + offset
+        guard photoIDs.indices.contains(to) else { return }
+        photoIDs.swapAt(from, to)
+    }
+}

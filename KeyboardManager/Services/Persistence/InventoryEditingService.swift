@@ -9,6 +9,7 @@ enum InventoryEditingError: LocalizedError, Equatable, Sendable {
     case invalidMainPhoto
     case invalidPrice(String)
     case invalidWeightGrams(String)
+    case bulkItemFailed(String, String)
 
     var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ enum InventoryEditingError: LocalizedError, Equatable, Sendable {
             L10n.text("„%@“ ist kein gültiger Preis.", arguments: value)
         case let .invalidWeightGrams(value):
             L10n.text("„%@“ ist keine gültige Grammangabe.", arguments: value)
+        case let .bulkItemFailed(name, message):
+            L10n.text("„%@“ konnte nicht geändert werden: %@", arguments: name, message)
         }
     }
 }
@@ -75,6 +78,34 @@ struct InventoryEditingService: Sendable {
         rememberLibraryValues(from: draft, in: &snapshot.libraryValues)
 
         return InventoryEditingResult(snapshot: snapshot, removedPhotos: removedPhotos)
+    }
+
+    /// Sets the given fields on several entries of one kind. Every entry runs
+    /// through the regular save path, so validation, relations and the value
+    /// libraries behave exactly as if it had been edited by hand. Nothing is
+    /// changed if any entry fails.
+    func applyingBulkEdit(
+        _ changes: [BulkEditField: String],
+        kind: InventoryItemKind,
+        ids: [String],
+        in source: InventorySnapshot,
+        now: Date = .now
+    ) throws -> InventorySnapshot {
+        var snapshot = source
+        for id in ids {
+            guard var draft = InventoryDraft(kind: kind, id: id, in: snapshot) else {
+                throw InventoryEditingError.missingItem
+            }
+            for (field, value) in changes {
+                draft[keyPath: field.keyPath] = value.trimmed
+            }
+            do {
+                snapshot = try saving(draft, newPhotos: [], in: snapshot, now: now).snapshot
+            } catch {
+                throw InventoryEditingError.bulkItemFailed(draft.normalizedName, error.localizedDescription)
+            }
+        }
+        return snapshot
     }
 
     /// Removes the preserved V1 import warnings of a switch set. The removal

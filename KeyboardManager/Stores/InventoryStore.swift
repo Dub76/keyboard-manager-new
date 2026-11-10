@@ -11,6 +11,9 @@ final class InventoryStore {
     var overviewFiltersByKind: [InventoryItemKind: InventoryFilters] = [:]
     var overviewSortsByKind: [InventoryItemKind: InventorySort] = [:]
     private(set) var overviewSelectionByKind: [InventoryItemKind: String] = [:]
+    private(set) var overviewMultiSelectionByKind: [InventoryItemKind: Set<String>] = [:]
+    private(set) var pendingDuplicate: PendingDuplicate?
+    private var editorRevision = 0
     private(set) var overviewScrollOffsetByKind: [InventoryItemKind: Double] = [:]
     private(set) var overviewRestoreRequest: OverviewRestoreRequest?
     var loadState: LoadState = .idle
@@ -195,11 +198,31 @@ final class InventoryStore {
     func updateOverviewSelection(_ id: String?, for kind: InventoryItemKind) {
         if let id {
             overviewSelectionByKind[kind] = id
+            overviewMultiSelectionByKind[kind] = [id]
         } else {
             overviewSelectionByKind.removeValue(forKey: kind)
+            overviewMultiSelectionByKind.removeValue(forKey: kind)
         }
         if selectedKind == kind {
             selectedItemID = id
+        }
+    }
+
+    /// Several selected rows have no single current entry; actions that need
+    /// one (details, edit, delete, duplicate) are then unavailable.
+    func updateOverviewMultiSelection(_ ids: Set<String>, for kind: InventoryItemKind) {
+        if ids.count == 1, let id = ids.first {
+            updateOverviewSelection(id, for: kind)
+            return
+        }
+        overviewSelectionByKind.removeValue(forKey: kind)
+        if ids.isEmpty {
+            overviewMultiSelectionByKind.removeValue(forKey: kind)
+        } else {
+            overviewMultiSelectionByKind[kind] = ids
+        }
+        if selectedKind == kind {
+            selectedItemID = nil
         }
     }
 
@@ -266,28 +289,235 @@ final class InventoryStore {
         guard let selectedItemID else {
             return InventoryDraft(kind: selectedKind)
         }
-        switch selectedKind {
-        case .board:
-            return snapshot.boards.first(where: { $0.id == selectedItemID })
-                .map { InventoryDraft(board: $0, installations: snapshot.switchInstallations) }
-                ?? InventoryDraft(kind: .board)
-        case .keycapSet:
-            return snapshot.keycapSets.first(where: { $0.id == selectedItemID })
-                .map(InventoryDraft.init(keycapSet:))
-                ?? InventoryDraft(kind: .keycapSet)
-        case .artisanSet:
-            return snapshot.artisanSets.first(where: { $0.id == selectedItemID })
-                .map(InventoryDraft.init(artisanSet:))
-                ?? InventoryDraft(kind: .artisanSet)
-        case .switchSet:
-            return snapshot.switchSets.first(where: { $0.id == selectedItemID })
-                .map { InventoryDraft(switchSet: $0, installations: snapshot.switchInstallations) }
-                ?? InventoryDraft(kind: .switchSet)
+        return InventoryDraft(kind: selectedKind, id: selectedItemID, in: snapshot)
+            ?? InventoryDraft(kind: selectedKind)
+    }
+
+    /// Changes whenever the editor is opened anew, so a duplicate is loaded
+    /// even if the editor already showed an empty draft of the same kind.
+    var editorIdentity: String {
+        "\(selectedKind.rawValue)::\(selectedItemID ?? "new")::\(editorRevision)"
+    }
+
+    /// The editor takes the prepared copy exactly once.
+    func takePendingDuplicate() -> PendingDuplicate? {
+        defer { pendingDuplicate = nil }
+        guard pendingDuplicate?.draft.kind == selectedKind, selectedItemID == nil else { return nil }
+        return pendingDuplicate
+    }
+
+    // MARK: Comfort
+
+    /// Opens the editor with an unsaved copy of an entry, including copies
+    /// of its photos. Nothing is written until the copy is saved.
+    @discardableResult
+    func duplicateItem(kind: InventoryItemKind, id: String) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        guard !needsDiscardConfirmation else {
+            editorSaveState = .failed(Self.finishDraftFirstMessage)
+            return false
+        }
+        guard let source = InventoryDraft(kind: kind, id: id, in: snapshot) else {
+            editorSaveState = .failed(InventoryEditingError.missingItem.localizedDescription)
+            return false
+        }
+        var copy = source.duplicated()
+        let records = source.photoIDs.compactMap { photoID in
+            snapshot.photos.first { $0.id == photoID }
+        }
+        let copies = await photoService.duplicate(
+            records,
+            owner: PhotoOwner(type: photoOwnerType(for: kind), id: copy.id)
+        )
+        let photos = copies.map(\.photo)
+        let newIDs = Dictionary(copies.map { ($0.sourceID, $0.photo.record.id) }, uniquingKeysWith: { first, _ in first })
+        copy.photoIDs = photos.map(\.record.id)
+        copy.mainPhotoID = source.mainPhotoID.flatMap { newIDs[$0] } ?? copy.photoIDs.first
+        openNewItem(kind)
+        pendingDuplicate = PendingDuplicate(draft: copy, photos: photos)
+        return true
+    }
+
+    /// Adds photos to an entry without opening the editor, for example when
+    /// images are dropped onto it in the overview or gallery.
+    @discardableResult
+    func addPhotos(urls: [URL], toItem kind: InventoryItemKind, id: String) async -> Bool {
+        guard !urls.isEmpty else { return false }
+        return await serializedWrite {
+            await self.performAddPhotos(urls: urls, kind: kind, id: id)
         }
     }
 
-    var editorIdentity: String {
-        "\(selectedKind.rawValue)::\(selectedItemID ?? "new")"
+    private func performAddPhotos(urls: [URL], kind: InventoryItemKind, id: String) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        guard var draft = InventoryDraft(kind: kind, id: id, in: snapshot) else {
+            editorSaveState = .failed(InventoryEditingError.missingItem.localizedDescription)
+            return false
+        }
+        do {
+            let photos = try await photoService.prepare(
+                urls: urls,
+                owner: PhotoOwner(type: photoOwnerType(for: kind), id: id)
+            )
+            // The entry may have changed while the photos were prepared.
+            guard let current = InventoryDraft(kind: kind, id: id, in: snapshot) else {
+                throw InventoryEditingError.missingItem
+            }
+            draft = current
+            draft.photoIDs.append(contentsOf: photos.map(\.record.id))
+            if draft.mainPhotoID == nil {
+                draft.mainPhotoID = draft.photoIDs.first
+            }
+            let result = try editingService.saving(draft, newPhotos: photos.map(\.record), in: snapshot)
+            try await photoService.commit(photos)
+            do {
+                try await repository.saveSnapshot(result.snapshot)
+            } catch {
+                await photoService.remove(photos.map(\.record))
+                throw error
+            }
+            await discardUndoableDeletion()
+            snapshot = result.snapshot
+            editorSaveState = .saved(L10n.text(
+                "%lld Fotos zu „%@“ hinzugefügt.",
+                arguments: photos.count,
+                draft.normalizedName
+            ))
+            scheduleAutomaticBackup()
+            return true
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Sets the chosen fields on all given entries in one write. The change
+    /// can be undone like a deletion until the next change.
+    @discardableResult
+    func applyBulkEdit(
+        _ changes: [BulkEditField: String],
+        kind: InventoryItemKind,
+        ids: Set<String>
+    ) async -> Bool {
+        await serializedWrite {
+            await self.performBulkEdit(changes, kind: kind, ids: ids)
+        }
+    }
+
+    private func performBulkEdit(
+        _ changes: [BulkEditField: String],
+        kind: InventoryItemKind,
+        ids: Set<String>
+    ) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        guard !changes.isEmpty, !ids.isEmpty else { return false }
+        let ordered = InventoryQuery.items(in: snapshot, kind: kind).map(\.id).filter(ids.contains)
+        do {
+            let previous = snapshot
+            let updated = try editingService.applyingBulkEdit(changes, kind: kind, ids: ordered, in: snapshot)
+            try await repository.saveSnapshot(updated)
+            await discardUndoableDeletion()
+            undoableDeletion = UndoableDeletion(
+                kind: kind,
+                itemID: ordered.first ?? "",
+                name: "",
+                previousSnapshot: previous,
+                photos: [],
+                holdID: UUID().uuidString,
+                change: .bulkEdit(ordered.count)
+            )
+            snapshot = updated
+            editorSaveState = .saved(L10n.text("%lld Einträge wurden geändert.", arguments: ordered.count))
+            scheduleAutomaticBackup()
+            return true
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Checks a CSV file for the given kind without changing anything.
+    func previewCSVImport(_ text: String, kind: InventoryItemKind) throws -> InventoryCSVImportPreview {
+        try InventoryCSV.preview(text, kind: kind, in: snapshot)
+    }
+
+    /// Creates the entries of a checked CSV file in one write. Rows are
+    /// checked again against the current state, so nothing changed in the
+    /// meantime can be overwritten or duplicated.
+    @discardableResult
+    func importCSV(_ text: String, kind: InventoryItemKind) async -> Bool {
+        await serializedWrite { await self.performImportCSV(text, kind: kind) }
+    }
+
+    private func performImportCSV(_ text: String, kind: InventoryItemKind) async -> Bool {
+        guard canWriteInventory else {
+            editorSaveState = .failed(Self.inventoryNotLoadedMessage)
+            return false
+        }
+        do {
+            let preview = try InventoryCSV.preview(text, kind: kind, in: snapshot)
+            guard !preview.drafts.isEmpty else {
+                editorSaveState = .failed(L10n.text("Die CSV-Datei enthält keine neuen Einträge."))
+                return false
+            }
+            let previous = snapshot
+            var updated = snapshot
+            for draft in preview.drafts {
+                updated = try editingService.saving(draft, newPhotos: [], in: updated).snapshot
+            }
+            try await repository.saveSnapshot(updated)
+            await discardUndoableDeletion()
+            undoableDeletion = UndoableDeletion(
+                kind: kind,
+                itemID: preview.drafts.first?.id ?? "",
+                name: "",
+                previousSnapshot: previous,
+                photos: [],
+                holdID: UUID().uuidString,
+                change: .csvImport(preview.drafts.count)
+            )
+            snapshot = updated
+            selectedKind = kind
+            editorSaveState = .saved(L10n.text(
+                "%lld Einträge wurden aus der CSV-Datei übernommen.",
+                arguments: preview.drafts.count
+            ))
+            scheduleAutomaticBackup()
+            return true
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Writes the given entries, in the given order, as a CSV file.
+    func exportCSV(kind: InventoryItemKind, ids: [String], to url: URL) -> Bool {
+        let text = InventoryCSV.export(snapshot, kind: kind, ids: ids)
+        let hasSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            try Data(text.utf8).write(to: url, options: .atomic)
+            editorSaveState = .saved(L10n.text(
+                "%lld Einträge als CSV gespeichert: %@",
+                arguments: ids.count,
+                url.lastPathComponent
+            ))
+            return true
+        } catch {
+            editorSaveState = .failed(error.localizedDescription)
+            return false
+        }
     }
 
     func preparePhotos(urls: [URL], for draft: InventoryDraft) async throws -> [PreparedPhoto] {
@@ -579,6 +809,8 @@ final class InventoryStore {
 
     private func openNewItem(_ kind: InventoryItemKind) {
         pendingOverviewReturn = nil
+        pendingDuplicate = nil
+        editorRevision += 1
         selectedKind = kind
         selectedItemID = nil
         editorSaveState = .idle
@@ -593,6 +825,8 @@ final class InventoryStore {
             itemID: id,
             scrollOffset: overviewScrollOffsetByKind[kind]
         )
+        pendingDuplicate = nil
+        editorRevision += 1
         selectedKind = kind
         selectedItemID = id
         editorSaveState = .idle
@@ -826,9 +1060,11 @@ final class InventoryStore {
             undoableDeletion = nil
             snapshot = undo.previousSnapshot
             isEditorDirty = false
-            scheduleOverviewRestore(kind: undo.kind, itemID: undo.itemID)
+            let undoneItemExists = InventoryQuery.items(in: undo.previousSnapshot, kind: undo.kind)
+                .contains { $0.id == undo.itemID }
+            scheduleOverviewRestore(kind: undo.kind, itemID: undoneItemExists ? undo.itemID : nil)
             route = .overview
-            editorSaveState = .saved(L10n.text("„%@“ wurde wiederhergestellt.", arguments: undo.name))
+            editorSaveState = .saved(undo.change.undoneMessage(name: undo.name))
             scheduleAutomaticBackup()
         } catch {
             editorSaveState = .failed(error.localizedDescription)
@@ -1038,6 +1274,8 @@ enum EditorSaveState: Equatable, Sendable {
     case failed(String)
 }
 
+/// The last change that can still be undone: a deletion, a bulk edit or a
+/// CSV import. It holds the complete state from before the change.
 struct UndoableDeletion: Equatable, Sendable {
     var kind: InventoryItemKind
     var itemID: String
@@ -1045,6 +1283,42 @@ struct UndoableDeletion: Equatable, Sendable {
     var previousSnapshot: InventorySnapshot
     var photos: [PhotoRecord]
     var holdID: String
+    var change: UndoableChange = .deletion
+}
+
+enum UndoableChange: Equatable, Sendable {
+    case deletion
+    case bulkEdit(Int)
+    case csvImport(Int)
+
+    func statusMessage(name: String) -> String {
+        switch self {
+        case .deletion: L10n.text("„%@“ wurde gelöscht.", arguments: name)
+        case let .bulkEdit(count): L10n.text("%lld Einträge wurden gemeinsam geändert.", arguments: count)
+        case let .csvImport(count): L10n.text("%lld Einträge wurden aus CSV importiert.", arguments: count)
+        }
+    }
+
+    func undoneMessage(name: String) -> String {
+        switch self {
+        case .deletion: L10n.text("„%@“ wurde wiederhergestellt.", arguments: name)
+        case .bulkEdit: L10n.text("Die Sammelbearbeitung wurde rückgängig gemacht.")
+        case .csvImport: L10n.text("Der CSV-Import wurde rückgängig gemacht.")
+        }
+    }
+
+    var menuTitle: String {
+        switch self {
+        case .deletion: L10n.text("Löschen rückgängig machen")
+        case .bulkEdit: L10n.text("Sammelbearbeitung rückgängig machen")
+        case .csvImport: L10n.text("CSV-Import rückgängig machen")
+        }
+    }
+}
+
+struct PendingDuplicate: Equatable, Sendable {
+    var draft: InventoryDraft
+    var photos: [PreparedPhoto]
 }
 
 enum BackupRestoreState: Equatable, Sendable {

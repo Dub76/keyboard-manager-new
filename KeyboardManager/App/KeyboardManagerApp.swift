@@ -137,13 +137,25 @@ struct KeyboardManagerApp: App {
                     }
                 }
 
-                Button("Löschen rückgängig machen") {
+                Button(store.undoableDeletion?.change.menuTitle ?? L10n.text("Löschen rückgängig machen")) {
                     Task {
                         await store.undoLastDeletion()
                     }
                 }
                 .keyboardShortcut("z", modifiers: [.command, .option])
                 .disabled(store.undoableDeletion == nil)
+
+                Button("Eintrag duplizieren") {
+                    guard let id = store.overviewSelectionByKind[store.selectedKind] else { return }
+                    Task {
+                        await store.duplicateItem(kind: store.selectedKind, id: id)
+                    }
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(
+                    store.route != .overview
+                        || store.overviewSelectionByKind[store.selectedKind] == nil
+                )
 
                 Divider()
 

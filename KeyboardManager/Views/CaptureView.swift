@@ -16,6 +16,7 @@ struct CaptureView: View {
     @State private var photoImportError: String?
     @State private var isPhotoDropTargeted = false
     @State private var isLoadingDroppedPhotos = false
+    @State private var pasteMonitor: Any?
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
@@ -56,7 +57,11 @@ struct CaptureView: View {
         .onChange(of: preparedPhotos) {
             updateDirtiness()
         }
+        .onAppear {
+            installPasteMonitor()
+        }
         .onDisappear {
+            removePasteMonitor()
             externalPhotoDownloadTask?.cancel()
             externalPhotoDownloadTask = nil
             isDownloadingExternalPhotos = false
@@ -370,8 +375,11 @@ struct CaptureView: View {
                     HStack(spacing: 12) {
                         ForEach(allPhotoIDs, id: \.self) { photoID in
                             PhotoEditorTile(
+                                photoID: photoID,
                                 image: image(for: photoID),
                                 isMain: draft.mainPhotoID == photoID,
+                                canMoveBack: allPhotoIDs.first != photoID,
+                                canMoveForward: allPhotoIDs.last != photoID,
                                 setMain: {
                                     registerStructuralUndo()
                                     draft.mainPhotoID = photoID
@@ -379,13 +387,27 @@ struct CaptureView: View {
                                 remove: {
                                     registerStructuralUndo()
                                     removePhoto(photoID)
+                                },
+                                move: { offset in
+                                    registerStructuralUndo()
+                                    draft.movePhoto(photoID, by: offset)
+                                },
+                                receiveDrop: { payloads in
+                                    guard let movedID = payloads.lazy.compactMap(PhotoReorderDrag.photoID(from:)).first,
+                                          movedID != photoID,
+                                          draft.photoIDs.contains(movedID) else { return false }
+                                    registerStructuralUndo()
+                                    withAnimation(.snappy) {
+                                        draft.movePhoto(movedID, onto: photoID)
+                                    }
+                                    return true
                                 }
                             )
                         }
                     }
                     .padding(.vertical, 4)
                 }
-                .frame(height: 132)
+                .frame(height: 140)
             }
 
             HStack {
@@ -394,12 +416,18 @@ struct CaptureView: View {
                 } label: {
                     Label("Fotos hinzufügen …", systemImage: "photo.badge.plus")
                 }
+                Button {
+                    pastePhotos()
+                } label: {
+                    Label("Aus Zwischenablage einfügen", systemImage: "doc.on.clipboard")
+                }
+                .help("Fotos aus der Zwischenablage einfügen (⌘V, wenn kein Textfeld aktiv ist)")
                 if isLoadingDroppedPhotos {
                     ProgressView()
                         .controlSize(.small)
                 }
             }
-            Text("Oder Fotos aus Finder, Fotos oder dem Browser hierher ziehen.")
+            Text("Oder Fotos aus Finder, Fotos oder dem Browser hierher ziehen. Die Reihenfolge änderst du, indem du ein Foto auf ein anderes ziehst.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -734,13 +762,25 @@ struct CaptureView: View {
         externalPhotoDownloadTask?.cancel()
         externalPhotoDownloadTask = nil
         isDownloadingExternalPhotos = false
-        let loaded = store.editorDraft()
-        draft = loaded
-        baseline = loaded
-        preparedPhotos = []
         photoImportError = nil
-        store.isEditorDirty = false
         store.clearEditorStatus()
+        if let duplicate = store.takePendingDuplicate() {
+            // The copy counts as unsaved, so leaving asks before discarding it.
+            draft = duplicate.draft
+            baseline = InventoryDraft(
+                kind: duplicate.draft.kind,
+                id: duplicate.draft.id,
+                createdAt: duplicate.draft.createdAt
+            )
+            preparedPhotos = duplicate.photos
+            updateDirtiness()
+        } else {
+            let loaded = store.editorDraft()
+            draft = loaded
+            baseline = loaded
+            preparedPhotos = []
+            store.isEditorDirty = false
+        }
         Task { @MainActor in
             isNameFocused = true
         }
@@ -837,6 +877,64 @@ struct CaptureView: View {
             .padding(8)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+
+    /// ⌘V adds photos when the clipboard holds images, unless a text field
+    /// has focus and the clipboard could just as well be text for it.
+    private func installPasteMonitor() {
+        removePasteMonitor()
+        pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard flags == .command,
+                  event.charactersIgnoringModifiers?.lowercased() == "v" else {
+                return event
+            }
+            let handled = MainActor.assumeIsolated { () -> Bool in
+                guard event.window?.isKeyWindow == true,
+                      store.route == .capture,
+                      !isSaving,
+                      event.window?.attachedSheet == nil else { return false }
+                let textHasFocus = event.window?.firstResponder is NSText
+                guard PhotoPasteboard.shouldPasteAsPhotos(.general, textHasFocus: textHasFocus) else {
+                    return false
+                }
+                pastePhotos()
+                return true
+            }
+            return handled ? nil : event
+        }
+    }
+
+    private func removePasteMonitor() {
+        if let pasteMonitor {
+            NSEvent.removeMonitor(pasteMonitor)
+        }
+        pasteMonitor = nil
+    }
+
+    private func pastePhotos() {
+        guard !isLoadingDroppedPhotos else { return }
+        let pasteboard = NSPasteboard.general
+        guard PhotoPasteboard.containsImages(pasteboard) else {
+            photoImportError = L10n.text("In der Zwischenablage ist kein Bild.")
+            return
+        }
+        let loader = DroppedPhotoLoader()
+        do {
+            let urls = try PhotoPasteboard.imageURLs(
+                from: pasteboard,
+                temporaryDirectory: loader.temporaryDirectory
+            )
+            isLoadingDroppedPhotos = true
+            Task {
+                await addPhotos(from: urls)
+                loader.removeTemporaryFiles()
+                isLoadingDroppedPhotos = false
+            }
+        } catch {
+            loader.removeTemporaryFiles()
+            photoImportError = error.localizedDescription
+        }
     }
 
     private func downloadExternalPhotos() {
@@ -940,10 +1038,16 @@ private final class UndoBridge: NSObject {
 }
 
 private struct PhotoEditorTile: View {
+    var photoID: String
     var image: NSImage?
     var isMain: Bool
+    var canMoveBack: Bool
+    var canMoveForward: Bool
     var setMain: () -> Void
     var remove: () -> Void
+    var move: (Int) -> Void
+    var receiveDrop: ([String]) -> Bool
+    @State private var isDropTargeted = false
 
     var body: some View {
         VStack(spacing: 6) {
@@ -968,6 +1072,38 @@ private struct PhotoEditorTile: View {
                         .foregroundStyle(.white, .tint)
                         .padding(5)
                 }
+            }
+            .overlay {
+                if isDropTargeted {
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.accentColor, lineWidth: 3)
+                }
+            }
+            .draggable(PhotoReorderDrag.payload(for: photoID)) {
+                Group {
+                    if let image {
+                        Image(nsImage: image).resizable().scaledToFill()
+                    } else {
+                        Image(systemName: "photo")
+                    }
+                }
+                .frame(width: 80, height: 62)
+                .clipShape(.rect(cornerRadius: 6))
+            }
+            .dropDestination(for: String.self) { payloads, _ in
+                receiveDrop(payloads)
+            } isTargeted: {
+                isDropTargeted = $0
+            }
+            .contextMenu {
+                Button("Als Hauptfoto", systemImage: "star", action: setMain)
+                    .disabled(isMain)
+                Button("Nach vorne", systemImage: "arrow.left") { move(-1) }
+                    .disabled(!canMoveBack)
+                Button("Nach hinten", systemImage: "arrow.right") { move(1) }
+                    .disabled(!canMoveForward)
+                Divider()
+                Button("Foto entfernen", systemImage: "trash", role: .destructive, action: remove)
             }
 
             HStack(spacing: 8) {

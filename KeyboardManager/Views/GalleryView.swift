@@ -6,6 +6,7 @@ struct GalleryView: View {
     @State private var filters = InventoryFilters()
     @State private var sort = InventorySort.name
     @State private var spotlightItemID: String?
+    @State private var dropTargetID: String?
 
     private let columns = [
         GridItem(.adaptive(minimum: 250, maximum: 360), spacing: 18)
@@ -30,12 +31,40 @@ struct GalleryView: View {
                             .onTapGesture {
                                 spotlightItemID = item.id
                             }
+                            .dropDestination(for: DroppedImageFile.self) { files, _ in
+                                addDroppedPhotos(files, to: item)
+                                return true
+                            } isTargeted: { targeted in
+                                if targeted {
+                                    dropTargetID = item.id
+                                } else if dropTargetID == item.id {
+                                    dropTargetID = nil
+                                }
+                            }
+                            .overlay {
+                                if dropTargetID == item.id {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [8, 5]))
+                                        .overlay {
+                                            Label("Fotos hinzufügen", systemImage: "photo.badge.plus")
+                                                .font(.headline)
+                                                .padding(10)
+                                                .background(.regularMaterial, in: .capsule)
+                                        }
+                                        .allowsHitTesting(false)
+                                }
+                            }
                             .contextMenu {
                                 Button("Details", systemImage: "eye") {
                                     spotlightItemID = item.id
                                 }
                                 Button("Bearbeiten", systemImage: "pencil") {
                                     store.editItem(kind: item.kind, id: item.id)
+                                }
+                                Button("Duplizieren", systemImage: "plus.square.on.square") {
+                                    Task {
+                                        await store.duplicateItem(kind: item.kind, id: item.id)
+                                    }
                                 }
                                 Button("Name kopieren", systemImage: "doc.on.doc") {
                                     copyToPasteboard(item.name)
@@ -71,6 +100,16 @@ struct GalleryView: View {
                     initialID: spotlightItemID
                 )
             }
+        }
+    }
+
+    private func addDroppedPhotos(_ files: [DroppedImageFile], to item: InventoryItemSummary) {
+        let urls = DroppedImageFile.usableURLs(files)
+        Task {
+            if !urls.isEmpty {
+                await store.addPhotos(urls: urls, toItem: item.kind, id: item.id)
+            }
+            DroppedImageFile.removeTemporaryCopies(files)
         }
     }
 

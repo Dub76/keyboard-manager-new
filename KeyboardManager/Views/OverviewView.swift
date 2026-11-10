@@ -6,6 +6,8 @@ struct OverviewView: View {
     @State private var spotlightItemID: String?
     @State private var isDeleteConfirmationPresented = false
     @State private var isReportExportPresented = false
+    @State private var isBulkEditPresented = false
+    @State private var csvImport: CSVImportRequest?
 
     private let columns = [
         GridItem(.adaptive(minimum: 150, maximum: 230), spacing: 12)
@@ -102,6 +104,12 @@ struct OverviewView: View {
         } message: {
             Text("Der Eintrag, seine verwalteten Fotos und seine Beziehungen werden konsistent entfernt.")
         }
+        .sheet(isPresented: $isBulkEditPresented) {
+            BulkEditView(store: store, kind: store.selectedKind, ids: currentMultiSelection)
+        }
+        .sheet(item: $csvImport) { request in
+            CSVImportView(store: store, request: request)
+        }
         .sheet(isPresented: $isReportExportPresented) {
             InventoryReportExportView(currentKind: store.selectedKind) { options in
                 guard let destinationURL = InventoryReportSavePanel.chooseDestination(for: options.format) else {
@@ -124,7 +132,7 @@ struct OverviewView: View {
         switch store.selectedKind {
         case .board:
             configuredTable(
-                Table(filteredItems, selection: selectionBinding) {
+                Table(of: InventoryItemSummary.self, selection: multiSelectionBinding) {
                     photoColumn
                     TableColumn("Keyboard") { row in
                         nameCell(row, detail: row.secondaryDetail)
@@ -153,11 +161,13 @@ struct OverviewView: View {
                     }
                     .width(min: 130, ideal: 190)
                     photoCountColumn
+                } rows: {
+                    itemRows
                 }
             )
         case .keycapSet:
             configuredTable(
-                Table(filteredItems, selection: selectionBinding) {
+                Table(of: InventoryItemSummary.self, selection: multiSelectionBinding) {
                     photoColumn
                     TableColumn("Set") { row in
                         nameCell(row, detail: row.secondaryDetail)
@@ -176,11 +186,13 @@ struct OverviewView: View {
                     }
                     .width(min: 120, ideal: 180)
                     photoCountColumn
+                } rows: {
+                    itemRows
                 }
             )
         case .artisanSet:
             configuredTable(
-                Table(filteredItems, selection: selectionBinding) {
+                Table(of: InventoryItemSummary.self, selection: multiSelectionBinding) {
                     photoColumn
                     TableColumn("Artisan") { row in
                         nameCell(row, detail: row.secondaryDetail)
@@ -199,11 +211,13 @@ struct OverviewView: View {
                     }
                     .width(min: 120, ideal: 180)
                     photoCountColumn
+                } rows: {
+                    itemRows
                 }
             )
         case .switchSet:
             configuredTable(
-                Table(filteredItems, selection: selectionBinding) {
+                Table(of: InventoryItemSummary.self, selection: multiSelectionBinding) {
                     photoColumn
                     TableColumn("Name / Bezeichnung") { row in
                         nameCell(row, detail: row.secondaryDetail)
@@ -223,8 +237,33 @@ struct OverviewView: View {
                     TableColumn("Operating Force", value: \.operatingForce)
                         .width(min: 95, ideal: 130)
                     photoCountColumn
+                } rows: {
+                    itemRows
                 }
             )
+        }
+    }
+
+    @TableRowBuilder<InventoryItemSummary>
+    private var itemRows: some TableRowContent<InventoryItemSummary> {
+        ForEach(filteredItems) { item in
+            TableRow(item)
+                .dropDestination(for: DroppedImageFile.self) { files in
+                    addDroppedPhotos(files, to: item)
+                }
+        }
+    }
+
+    private func addDroppedPhotos(_ files: [DroppedImageFile], to item: InventoryItemSummary) {
+        let urls = DroppedImageFile.usableURLs(files)
+        let kind = store.selectedKind
+        Task {
+            if urls.isEmpty {
+                store.editorSaveState = .failed(L10n.text("Die abgelegten Elemente sind keine Bilder."))
+            } else {
+                await store.addPhotos(urls: urls, toItem: kind, id: item.id)
+            }
+            DroppedImageFile.removeTemporaryCopies(files)
         }
     }
 
@@ -264,13 +303,26 @@ struct OverviewView: View {
     private func configuredTable<Content: View>(_ table: Content) -> some View {
         table
         .contextMenu(forSelectionType: String.self) { selectedIDs in
-            if let id = selectedIDs.first {
+            if selectedIDs.count > 1 {
+                Button("\(selectedIDs.count) Einträge gemeinsam bearbeiten …", systemImage: "square.and.pencil") {
+                    store.updateOverviewMultiSelection(selectedIDs, for: store.selectedKind)
+                    isBulkEditPresented = true
+                }
+                Button("Auswahl als CSV exportieren …", systemImage: "tablecells") {
+                    exportCSV(ids: filteredItems.map(\.id).filter(selectedIDs.contains))
+                }
+            } else if let id = selectedIDs.first {
                 Button("Details", systemImage: "eye") {
                     store.updateOverviewSelection(id, for: store.selectedKind)
                     spotlightItemID = id
                 }
                 Button("Bearbeiten", systemImage: "pencil") {
                     store.editItem(kind: store.selectedKind, id: id)
+                }
+                Button("Duplizieren", systemImage: "plus.square.on.square") {
+                    Task {
+                        await store.duplicateItem(kind: store.selectedKind, id: id)
+                    }
                 }
                 Button("Name kopieren", systemImage: "doc.on.doc") {
                     if let item = filteredItems.first(where: { $0.id == id }) {
@@ -428,6 +480,25 @@ struct OverviewView: View {
             }
             .disabled(currentSelection == nil)
 
+            Button {
+                guard let selection = currentSelection else { return }
+                Task {
+                    await store.duplicateItem(kind: store.selectedKind, id: selection)
+                }
+            } label: {
+                Label("Duplizieren", systemImage: "plus.square.on.square")
+            }
+            .disabled(currentSelection == nil || store.loadState != .loaded)
+            .help("Kopie des Eintrags mit seinen Fotos im Editor öffnen (⌘D)")
+
+            Button {
+                isBulkEditPresented = true
+            } label: {
+                Label("Gemeinsam bearbeiten …", systemImage: "square.and.pencil")
+            }
+            .disabled(currentMultiSelection.count < 2 || store.loadState != .loaded)
+            .help("Mehrere Einträge mit ⌘- oder ⇧-Klick markieren und Felder für alle gleichzeitig setzen")
+
             Button(role: .destructive) {
                 isDeleteConfirmationPresented = true
             } label: {
@@ -436,6 +507,25 @@ struct OverviewView: View {
             .disabled(currentSelection == nil)
 
             Spacer()
+
+            Menu {
+                Button("\(store.selectedKind.displayName) aus CSV importieren …") {
+                    chooseCSVImport()
+                }
+                Divider()
+                Button("Angezeigte Einträge als CSV exportieren …") {
+                    exportCSV(ids: filteredItems.map(\.id))
+                }
+                .disabled(filteredItems.isEmpty)
+                Button("Markierte Einträge als CSV exportieren …") {
+                    exportCSV(ids: filteredItems.map(\.id).filter(currentMultiSelection.contains))
+                }
+                .disabled(currentMultiSelection.isEmpty)
+            } label: {
+                Label("CSV", systemImage: "tablecells")
+            }
+            .fixedSize()
+            .disabled(store.loadState != .loaded)
 
             Button {
                 isReportExportPresented = true
@@ -493,11 +583,56 @@ struct OverviewView: View {
         store.overviewSelectionByKind[store.selectedKind]
     }
 
-    private var selectionBinding: Binding<String?> {
+    private var currentMultiSelection: Set<String> {
+        let visible = Set(filteredItems.map(\.id))
+        return store.overviewMultiSelectionByKind[store.selectedKind, default: []]
+            .intersection(visible)
+    }
+
+    private var multiSelectionBinding: Binding<Set<String>> {
         Binding(
-            get: { currentSelection },
-            set: { store.updateOverviewSelection($0, for: store.selectedKind) }
+            get: {
+                store.overviewMultiSelectionByKind[store.selectedKind]
+                    ?? currentSelection.map { [$0] } ?? []
+            },
+            set: { store.updateOverviewMultiSelection($0, for: store.selectedKind) }
         )
+    }
+
+    private func chooseCSVImport() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.text("CSV-Datei importieren")
+        panel.prompt = L10n.text("Prüfen")
+        panel.allowedContentTypes = [.commaSeparatedText, .tabSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let hasSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            let text = String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .windowsCP1252)
+                ?? ""
+            csvImport = CSVImportRequest(kind: store.selectedKind, fileName: url.lastPathComponent, text: text)
+        } catch {
+            store.editorSaveState = .failed(error.localizedDescription)
+        }
+    }
+
+    private func exportCSV(ids: [String]) {
+        guard !ids.isEmpty else { return }
+        let panel = NSSavePanel()
+        panel.title = L10n.text("Als CSV exportieren")
+        panel.prompt = L10n.text("Sichern")
+        panel.nameFieldStringValue = InventoryCSV.defaultFileName(for: store.selectedKind)
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        _ = store.exportCSV(kind: store.selectedKind, ids: ids, to: url)
     }
 
     private var activeRestoreRequest: OverviewRestoreRequest? {

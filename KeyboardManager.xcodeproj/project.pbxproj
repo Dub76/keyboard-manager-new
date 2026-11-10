@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0000000000000000000000F7 /* InventoryComfortTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F7 /* InventoryComfortTests.swift */; };
+		0000000000000000000000F6 /* CSVImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F6 /* CSVImportView.swift */; };
+		0000000000000000000000F5 /* BulkEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F5 /* BulkEditView.swift */; };
+		0000000000000000000000F4 /* PhotoTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F4 /* PhotoTransfer.swift */; };
+		0000000000000000000000F3 /* InventoryCSV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F3 /* InventoryCSV.swift */; };
+		0000000000000000000000F2 /* BulkEdit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000F2 /* BulkEdit.swift */; };
 		000000000000000000000001 /* KeyboardManagerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* KeyboardManagerApp.swift */; };
 		000000000000000000000002 /* CoreTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* CoreTypes.swift */; };
 		000000000000000000000003 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000003 /* Board.swift */; };
@@ -93,6 +99,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1000000000000000000000F7 /* InventoryComfortTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryComfortTests.swift; sourceTree = "<group>"; };
+		1000000000000000000000F6 /* CSVImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportView.swift; sourceTree = "<group>"; };
+		1000000000000000000000F5 /* BulkEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEditView.swift; sourceTree = "<group>"; };
+		1000000000000000000000F4 /* PhotoTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoTransfer.swift; sourceTree = "<group>"; };
+		1000000000000000000000F3 /* InventoryCSV.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryCSV.swift; sourceTree = "<group>"; };
+		1000000000000000000000F2 /* BulkEdit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEdit.swift; sourceTree = "<group>"; };
 		100000000000000000000001 /* KeyboardManagerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardManagerApp.swift; sourceTree = "<group>"; };
 		100000000000000000000002 /* CoreTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTypes.swift; sourceTree = "<group>"; };
 		100000000000000000000003 /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
@@ -229,6 +241,7 @@
 		200000000000000000000004 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				1000000000000000000000F2 /* BulkEdit.swift */,
 				100000000000000000000002 /* CoreTypes.swift */,
 				100000000000000000000003 /* Board.swift */,
 				100000000000000000000004 /* ComponentModels.swift */,
@@ -298,6 +311,7 @@
 		20000000000000000000000E /* Reports */ = {
 			isa = PBXGroup;
 			children = (
+				1000000000000000000000F3 /* InventoryCSV.swift */,
 				10000000000000000000002A /* InventoryReportBuilder.swift */,
 				10000000000000000000002B /* InventoryReportExportService.swift */,
 			);
@@ -307,6 +321,7 @@
 		200000000000000000000009 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				1000000000000000000000F4 /* PhotoTransfer.swift */,
 				100000000000000000000036 /* AppLanguage.swift */,
 				10000000000000000000000A /* AppRoute.swift */,
 				100000000000000000000019 /* MigrationStorageLayout.swift */,
@@ -320,6 +335,8 @@
 		20000000000000000000000A /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				1000000000000000000000F6 /* CSVImportView.swift */,
+				1000000000000000000000F5 /* BulkEditView.swift */,
 				10000000000000000000000B /* ContentView.swift */,
 				10000000000000000000000C /* SidebarView.swift */,
 				10000000000000000000000D /* OverviewView.swift */,
@@ -340,6 +357,7 @@
 		20000000000000000000000B /* KeyboardManagerTests */ = {
 			isa = PBXGroup;
 			children = (
+				1000000000000000000000F7 /* InventoryComfortTests.swift */,
 				10000000000000000000003B /* AppUpdateServiceTests.swift */,
 				100000000000000000000013 /* InventoryModelsTests.swift */,
 				100000000000000000000014 /* V1MigrationServiceTests.swift */,
@@ -520,6 +538,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0000000000000000000000F6 /* CSVImportView.swift in Sources */,
+				0000000000000000000000F5 /* BulkEditView.swift in Sources */,
+				0000000000000000000000F4 /* PhotoTransfer.swift in Sources */,
+				0000000000000000000000F3 /* InventoryCSV.swift in Sources */,
+				0000000000000000000000F2 /* BulkEdit.swift in Sources */,
 				000000000000000000000001 /* KeyboardManagerApp.swift in Sources */,
 				000000000000000000000002 /* CoreTypes.swift in Sources */,
 				000000000000000000000003 /* Board.swift in Sources */,
@@ -572,6 +595,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0000000000000000000000F7 /* InventoryComfortTests.swift in Sources */,
 				000000000000000000000013 /* InventoryModelsTests.swift in Sources */,
 				000000000000000000000014 /* V1MigrationServiceTests.swift in Sources */,
 				00000000000000000000001A /* V1BackupReaderTests.swift in Sources */,
@@ -650,7 +674,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Keyboard Manager";
@@ -661,7 +685,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.r3d42.KeyboardManagerV2;
 				PRODUCT_MODULE_NAME = KeyboardManager;
 				PRODUCT_NAME = "Keyboard Manager";
@@ -677,7 +701,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Keyboard Manager";
@@ -688,7 +712,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = de.r3d42.KeyboardManagerV2;
 				PRODUCT_MODULE_NAME = KeyboardManager;
 				PRODUCT_NAME = "Keyboard Manager";

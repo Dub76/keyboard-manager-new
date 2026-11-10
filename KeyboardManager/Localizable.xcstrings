@@ -31,6 +31,16 @@
         }
       }
     },
+    "„%@“ ist kein gültiger Wert für „%@“.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” is not a valid value for “%@”."
+          }
+        }
+      }
+    },
     "„%@“ ist keine gültige Grammangabe.": {
       "localizations": {
         "en": {
@@ -57,6 +67,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "“%@” could not be prepared for the media library."
+          }
+        }
+      }
+    },
+    "„%@“ konnte nicht geändert werden: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” could not be changed: %@"
           }
         }
       }
@@ -107,6 +127,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ · %lld pieces"
+          }
+        }
+      }
+    },
+    "%@ (Kopie)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (copy)"
+          }
+        }
+      }
+    },
+    "%@ aus CSV importieren …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import %@ from CSV…"
           }
         }
       }
@@ -181,6 +221,16 @@
         }
       }
     },
+    "%lld %@ gemeinsam bearbeiten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit %lld %@ together"
+          }
+        }
+      }
+    },
     "%lld abgelegte Elemente sind keine Bilder und wurden übersprungen.": {
       "localizations": {
         "en": {
@@ -231,12 +281,102 @@
         }
       }
     },
+    "%lld Einträge als CSV gespeichert: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries saved as CSV: %@"
+          }
+        }
+      }
+    },
+    "%lld Einträge ändern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change %lld entries"
+          }
+        }
+      }
+    },
+    "%lld Einträge gemeinsam bearbeiten …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit %lld entries together…"
+          }
+        }
+      }
+    },
+    "%lld Einträge importieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import %lld entries"
+          }
+        }
+      }
+    },
+    "%lld Einträge wurden aus CSV importiert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries were imported from CSV."
+          }
+        }
+      }
+    },
+    "%lld Einträge wurden aus der CSV-Datei übernommen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries were imported from the CSV file."
+          }
+        }
+      }
+    },
+    "%lld Einträge wurden geändert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries were changed."
+          }
+        }
+      }
+    },
+    "%lld Einträge wurden gemeinsam geändert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld entries were changed together."
+          }
+        }
+      }
+    },
     "%lld Fotos": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld photos"
+          }
+        }
+      }
+    },
+    "%lld Fotos zu „%@“ hinzugefügt.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld photos added to “%@”."
           }
         }
       }
@@ -429,6 +569,16 @@
         }
       }
     },
+    "Als CSV exportieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export as CSV"
+          }
+        }
+      }
+    },
     "Als Hauptfoto": {
       "localizations": {
         "en": {
@@ -499,6 +649,16 @@
         }
       }
     },
+    "Angezeigte Einträge als CSV exportieren …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export shown entries as CSV…"
+          }
+        }
+      }
+    },
     "Artisan": {
       "localizations": {
         "en": {
@@ -519,12 +679,32 @@
         }
       }
     },
+    "Aus Zwischenablage einfügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste from clipboard"
+          }
+        }
+      }
+    },
     "Ausschneiden": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Cut"
+          }
+        }
+      }
+    },
+    "Auswahl als CSV exportieren …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export selection as CSV…"
           }
         }
       }
@@ -945,6 +1125,46 @@
         }
       }
     },
+    "CSV": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV"
+          }
+        }
+      }
+    },
+    "CSV-Datei importieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import CSV file"
+          }
+        }
+      }
+    },
+    "CSV-Import rückgängig machen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo CSV import"
+          }
+        }
+      }
+    },
+    "CSV-Import: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV import: %@"
+          }
+        }
+      }
+    },
     "Das Backup enthält mehr Einträge als erlaubt.": {
       "localizations": {
         "en": {
@@ -1145,6 +1365,16 @@
         }
       }
     },
+    "Datei kann nicht importiert werden": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File cannot be imported"
+          }
+        }
+      }
+    },
     "Dateiname:": {
       "localizations": {
         "en": {
@@ -1291,6 +1521,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The inventory was not loaded. Changes are blocked so that no stored data is overwritten."
+          }
+        }
+      }
+    },
+    "Der CSV-Import wurde rückgängig gemacht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CSV import was undone."
           }
         }
       }
@@ -1495,6 +1735,16 @@
         }
       }
     },
+    "Die abgelegten Elemente sind keine Bilder.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dropped items are not images."
+          }
+        }
+      }
+    },
     "Die ausgewählte Quelle ist keine reguläre Backup-Datei.": {
       "localizations": {
         "en": {
@@ -1511,6 +1761,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "The inventory data exceeds the 10 MiB manifest limit."
+          }
+        }
+      }
+    },
+    "Die CSV-Datei enthält keine neuen Einträge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CSV file contains no new entries."
+          }
+        }
+      }
+    },
+    "Die CSV-Datei enthält keine Zeilen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CSV file contains no rows."
           }
         }
       }
@@ -1621,6 +1891,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "The copied V1 database failed integrity verification: %@"
+          }
+        }
+      }
+    },
+    "Die Sammelbearbeitung wurde rückgängig gemacht.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bulk edit was undone."
           }
         }
       }
@@ -1865,6 +2145,16 @@
         }
       }
     },
+    "Duplizieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate"
+          }
+        }
+      }
+    },
     "Durchschnittspreis": {
       "localizations": {
         "en": {
@@ -1921,6 +2211,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "A record in %@ is unreadable or its ID does not match the JSON content."
+          }
+        }
+      }
+    },
+    "Ein Eintrag mit diesem Namen ist schon vorhanden.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An entry with this name already exists."
           }
         }
       }
@@ -1991,6 +2291,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Embedded legacy photos are converted to separate, verified files before import."
+          }
+        }
+      }
+    },
+    "Eingefügtes Foto": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pasted photo"
+          }
+        }
+      }
+    },
+    "Eintrag duplizieren": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate entry"
           }
         }
       }
@@ -2265,6 +2585,26 @@
         }
       }
     },
+    "Fehler (werden nicht importiert)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errors (not imported)"
+          }
+        }
+      }
+    },
+    "Fehlerhafte Zeilen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rows with errors"
+          }
+        }
+      }
+    },
     "Fenster mit ungespeicherten Änderungen schließen?": {
       "localizations": {
         "en": {
@@ -2335,6 +2675,16 @@
         }
       }
     },
+    "Foto entfernen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove photo"
+          }
+        }
+      }
+    },
     "Fotoimport fehlgeschlagen": {
       "localizations": {
         "en": {
@@ -2355,6 +2705,16 @@
         }
       }
     },
+    "Fotos aus der Zwischenablage einfügen (⌘V, wenn kein Textfeld aktiv ist)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste photos from the clipboard (⌘V when no text field is active)"
+          }
+        }
+      }
+    },
     "Fotos besitzen keinen gültigen Inventar-Eigentümer.": {
       "localizations": {
         "en": {
@@ -2371,6 +2731,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Drop photos here"
+          }
+        }
+      }
+    },
+    "Fotos hinzufügen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add photos"
           }
         }
       }
@@ -2441,6 +2811,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Check detected V1 source"
+          }
+        }
+      }
+    },
+    "Gemeinsam bearbeiten …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit together…"
           }
         }
       }
@@ -2701,6 +3081,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove import warnings?"
+          }
+        }
+      }
+    },
+    "In der ersten Zeile fehlt die Spalte „Name“.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first row is missing the “Name” column."
+          }
+        }
+      }
+    },
+    "In der Zwischenablage ist kein Bild.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no image on the clipboard."
           }
         }
       }
@@ -3085,6 +3485,16 @@
         }
       }
     },
+    "Kopie des Eintrags mit seinen Fotos im Editor öffnen (⌘D)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a copy of the entry with its photos in the editor (⌘D)"
+          }
+        }
+      }
+    },
     "Kopieren": {
       "localizations": {
         "en": {
@@ -3225,6 +3635,16 @@
         }
       }
     },
+    "Markierte Einträge als CSV exportieren …": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export selected entries as CSV…"
+          }
+        }
+      }
+    },
     "Material": {
       "localizations": {
         "en": {
@@ -3251,6 +3671,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Capture, manage and back up mechanical keyboard collections locally."
+          }
+        }
+      }
+    },
+    "Mehrere Einträge mit ⌘- oder ⇧-Klick markieren und Felder für alle gleichzeitig setzen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select several entries with ⌘-click or ⇧-click and set fields for all of them at once"
           }
         }
       }
@@ -3365,6 +3795,26 @@
         }
       }
     },
+    "Nach hinten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move back"
+          }
+        }
+      }
+    },
+    "Nach vorne": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move forward"
+          }
+        }
+      }
+    },
     "Nächster Eintrag": {
       "localizations": {
         "en": {
@@ -3435,6 +3885,26 @@
         }
       }
     },
+    "Neue Einträge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New entries"
+          }
+        }
+      }
+    },
+    "Neue Einträge werden angelegt; vorhandene werden nicht verändert. Fotos und Verknüpfungen werden nicht importiert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New entries are created; existing ones are not changed. Photos and links are not imported."
+          }
+        }
+      }
+    },
     "Neuer Eintrag": {
       "localizations": {
         "en": {
@@ -3481,6 +3951,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Not mounted"
+          }
+        }
+      }
+    },
+    "Nicht übernommene Spalten": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Columns not imported"
           }
         }
       }
@@ -3595,6 +4075,16 @@
         }
       }
     },
+    "Nur angehakte Felder werden geändert. Ein angehaktes leeres Feld wird bei allen Einträgen geleert.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only checked fields are changed. A checked empty field is cleared on all entries."
+          }
+        }
+      }
+    },
     "Nur lesen": {
       "localizations": {
         "en": {
@@ -3621,6 +4111,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Or drag photos here from Finder, Photos or a browser."
+          }
+        }
+      }
+    },
+    "Oder Fotos aus Finder, Fotos oder dem Browser hierher ziehen. Die Reihenfolge änderst du, indem du ein Foto auf ein anderes ziehst.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or drag photos here from Finder, Photos, or the browser. To change the order, drag a photo onto another one."
           }
         }
       }
@@ -3825,6 +4325,16 @@
         }
       }
     },
+    "Prüfen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check"
+          }
+        }
+      }
+    },
     "Prüfergebnis": {
       "localizations": {
         "en": {
@@ -3945,6 +4455,16 @@
         }
       }
     },
+    "Sammelbearbeitung rückgängig machen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Undo bulk edit"
+          }
+        }
+      }
+    },
     "Sammlung": {
       "localizations": {
         "en": {
@@ -3975,6 +4495,16 @@
         }
       }
     },
+    "Schon vorhanden, übersprungen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already present, skipped"
+          }
+        }
+      }
+    },
     "Seite %lld": {
       "localizations": {
         "en": {
@@ -4001,6 +4531,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shop"
+          }
+        }
+      }
+    },
+    "Sichern": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
           }
         }
       }
@@ -4335,6 +4875,16 @@
         }
       }
     },
+    "Übersprungen": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped"
+          }
+        }
+      }
+    },
     "Umfang": {
       "localizations": {
         "en": {
@@ -4625,6 +5175,16 @@
         }
       }
     },
+    "Vorhandene Werte": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing values"
+          }
+        }
+      }
+    },
     "Vorhandenen V2-Bestand sichern und ersetzen": {
       "localizations": {
         "en": {
@@ -4775,6 +5335,16 @@
         }
       }
     },
+    "Wird angelegt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Will be created"
+          }
+        }
+      }
+    },
     "Wird gespeichert …": {
       "localizations": {
         "en": {
@@ -4791,6 +5361,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Wishlist"
+          }
+        }
+      }
+    },
+    "Zeile %lld%@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Row %lld%@"
           }
         }
       }

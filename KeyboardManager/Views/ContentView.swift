@@ -158,9 +158,9 @@ struct ContentView: View {
     private var undoDeletionStatus: some View {
         if let deletion = store.undoableDeletion {
             statusBar {
-                Image(systemName: "trash")
+                Image(systemName: deletion.change == .deletion ? "trash" : "arrow.uturn.backward.circle")
                     .foregroundStyle(.secondary)
-                Text("„\(deletion.name)“ wurde gelöscht.")
+                Text(deletion.change.statusMessage(name: deletion.name))
                     .lineLimit(1)
                 Spacer()
                 Button("Rückgängig") {

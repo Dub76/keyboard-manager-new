@@ -131,6 +131,28 @@ actor PhotoImportService {
         return prepared
     }
 
+    /// Copies existing managed photos for a new owner, for example when an
+    /// entry is duplicated. The data was already checked and cleaned on
+    /// import, so it is taken over unchanged. Missing files are skipped.
+    func duplicate(_ records: [PhotoRecord], owner: PhotoOwner) -> [(sourceID: String, photo: PreparedPhoto)] {
+        records.compactMap { record in
+            guard let url = try? safeURL(for: record),
+                  let data = try? Data(contentsOf: url) else { return nil }
+            let id = UUID().uuidString
+            let copy = PhotoRecord(
+                id: id,
+                owner: owner,
+                originalName: record.originalName,
+                mimeType: record.mimeType,
+                pixelWidth: record.pixelWidth,
+                pixelHeight: record.pixelHeight,
+                addedAt: .now,
+                relativeFileName: "\(id).\(record.mimeType.fileExtension)"
+            )
+            return (record.id, PreparedPhoto(record: copy, data: data))
+        }
+    }
+
     func commit(_ photos: [PreparedPhoto]) throws {
         guard !photos.isEmpty else { return }
         try fileManager.createDirectory(
