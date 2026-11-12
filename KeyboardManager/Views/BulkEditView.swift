@@ -65,7 +65,6 @@ struct BulkEditView: View {
         .frame(width: 560, height: 620)
     }
 
-    @ViewBuilder
     private var isBusy: Bool { isApplying }
 
     private func row(for field: BulkEditField) -> some View {
